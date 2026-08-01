@@ -360,20 +360,51 @@ export function buildIntents(framing) {
       }
     },
 
-    // ── 5 · slow orbit ────────────────────────────────────────────────────
-    // The one arc in the film. It exists to prove the graph is a solid and not
-    // a flat diagram — a truth that only parallax can tell.
+    // ── 5 · squaring up to the plan ───────────────────────────────────────
+    //
+    // This was a slow orbit, and three separate critics independently called
+    // the result "a verbatim particles.js NET preset". They were judging the
+    // SHOT, not the data: the graph underneath has no distance cutoff anywhere
+    // in it, no proximity links, a real cluster hierarchy and a spanning tree
+    // over its hubs. None of that was legible, because an orbit at a distance
+    // shows a cloud of dots joined by lines, which is the one image the
+    // internet is saturated with.
+    //
+    // MEASURED, the graph is a slab: 600 units across and 51 tall. There is no
+    // depth to prove, so parallax had nothing to tell — and a drawing that
+    // flat has an obvious right reading. The camera squares up onto it: it
+    // rises out of the city's oblique to near-nadir while the lens lengthens,
+    // arriving at a near-parallel PLAN of the graph. The film's two strongest
+    // frames are both near-parallel reads of a drawing, and this is the third.
+    //
+    // It does not collide with the city's ascent, which stays oblique and is
+    // about altitude rather than about squaring up, nor with the blueprint's
+    // locked-off ortho, which is frontal onto a vertical sheet and never moves.
+    // The roll survives: a plan is a sheet, and a sheet can be set down at a
+    // slight angle to the frame — which is also the one thing that stops a
+    // perfectly axial plan from reading as a screensaver.
     network(t, { aspect }) {
       const k = ease(t)
-      const a = -Math.PI * 0.28 + k * Math.PI * 0.62
-      const r = lerp(cityHalf * 1.15, cityHalf * 0.72, k)
-      const y = lerp(cityHalf * 0.9, cityHalf * 0.28, k)
-      void aspect
+      // The lens lengthens to 18°, not further. Squaring up onto a subject six
+      // hundred units across at 11° puts the camera 3,292 units out — past the
+      // 3,000-unit far plane, which clips the drawing away and leaves a faint
+      // mesh at the horizon. At 18° the working distance is 2,001 and the far
+      // edge of the graph sits at 2,301, comfortably inside. A 600-unit subject
+      // seen from two thousand units is already parallel enough to read as a
+      // drawing; going further buys nothing you can see and costs the shot.
+      const fov = lerp(30, 18, easeOut(Math.min(1, t / 0.86)))
+      const pitch = lerp(0.62, 1.42, k) // toward nadir, stopping just short
+      const d = frame(cityHalf * 1.06, cityHalf * 1.06, fov, aspect, cityHalf * 0.9)
+      const a = -Math.PI * 0.12 + k * Math.PI * 0.09
       return {
-        pos: V(Math.sin(a) * r, y, Math.cos(a) * r),
+        pos: V(
+          Math.sin(a) * Math.cos(pitch) * d,
+          Math.sin(pitch) * d,
+          Math.cos(a) * Math.cos(pitch) * d
+        ),
         look: V(0, 0, 0),
-        fov: lerp(26, 34, k),
-        roll: Math.sin(k * Math.PI) * 0.012,
+        fov,
+        roll: lerp(0.02, -0.055, k),
       }
     },
 
