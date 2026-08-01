@@ -87,17 +87,55 @@ const hline = (y, x0, x1) => [
  * their own sidebearings instead of inheriting a single gap that is right for a
  * four-unit bowl and far too wide for a one-unit stem.
  */
-const ROUND = [R, R, R, R]
 const BAR_Y = 2.0
+const HP = Math.PI / 2
+
+/**
+ * The clear space between two letters' rendered edges.
+ *
+ * Advance is derived from it rather than authored per glyph: ink width, plus
+ * one bead diameter for the half-bead each extreme overhangs, plus the gap.
+ * A single flat `adv` per letter cannot do this — beads overhang a bowl's ink
+ * box on both sides but a bare stem's ink box has NO width at all, so the same
+ * number produced a 0.34-unit gap between `a` and `l` and a 1.24-unit gap
+ * between `l` and `i`. Nearly four to one, on a mark whose whole character is
+ * even rhythm; it read as two words.
+ */
+const GAP = 0.85
+const adv = (inkW) => inkW + BEAD + GAP
+
+/**
+ * The `e` is the one letter that cannot be a closed bowl with a bar across it.
+ * Its form IS its aperture: a ring broken through the lower right, the
+ * crossbar's terminal forming the mouth's upper lip.
+ *
+ * It was built by FILTERING beads out of a finished bowl, which cannot work.
+ * Removing a span from the middle of a polyline leaves its two cut ends
+ * ADJACENT, and the bead walk then lays a straight run of beads across the
+ * gap — so the letter gained a chord through its own counter and a clot where
+ * the bar met the ring, and read as an `8`. An open path has to be authored as
+ * an open path.
+ */
+const eRing = (() => {
+  const p = [[4 - R, 0]] // terminal: the bottom edge's right end
+  p.push([R, 0])
+  arc(R, R, R, -HP, -Math.PI, p) // bottom-left
+  p.push([0, X_HEIGHT - R])
+  arc(R, X_HEIGHT - R, R, Math.PI, HP, p) // top-left
+  p.push([4 - R, X_HEIGHT])
+  arc(4 - R, X_HEIGHT - R, R, HP, 0, p) // top-right
+  p.push([4, BAR_Y]) // down the right side, stopping at the bar
+  return p
+})()
 
 const GLYPHS = {
   // Straight right side — the stem that makes it an `a`.
-  a: { w: 4, adv: 5.5, strokes: [bowl(0, 0, 4, X_HEIGHT, [R, 0, 0, R])] },
-  l: { w: 1, adv: 2.4, strokes: [vline(0, 0, ASCENDER)] },
-  i: { w: 1, adv: 2.4, strokes: [vline(0, 0, X_HEIGHT)], tittle: [0, X_HEIGHT + 1.95] },
+  a: { w: 4, adv: adv(4), strokes: [bowl(0, 0, 4, X_HEIGHT, [R, 0, 0, R])] },
+  l: { w: 0, adv: adv(0), strokes: [vline(0, 0, ASCENDER)] },
+  i: { w: 0, adv: adv(0), strokes: [vline(0, 0, X_HEIGHT)], tittle: [0, X_HEIGHT + 1.95] },
   n: {
     w: 4,
-    adv: 5.5,
+    adv: adv(4),
     strokes: [
       vline(0, 0, X_HEIGHT - 2),
       (() => {
@@ -108,23 +146,11 @@ const GLYPHS = {
       vline(4, 0, X_HEIGHT - 2),
     ],
   },
-  // A full bowl with the lower-right quadrant removed — the mouth — plus the
-  // bar. Trimming a finished path is far more robust than trying to stop
-  // drawing one part-way through it.
-  e: {
-    w: 4,
-    adv: 5.5,
-    strokes: [
-      bowl(0, 0, 4, X_HEIGHT, ROUND).filter(
-        ([px, py]) => !(px > 3.45 && py < BAR_Y - 0.15)
-      ),
-      hline(BAR_Y, 0.05, 4),
-    ],
-  },
+  e: { w: 4, adv: adv(4), strokes: [eRing, hline(BAR_Y, 0, 4)] },
   // The ascender is the bowl's own right side, continued. One stroke, no join.
   d: {
     w: 4,
-    adv: 5.5,
+    adv: adv(4),
     strokes: [bowl(0, 0, 4, X_HEIGHT, [R, 0, 0, R]), vline(4, X_HEIGHT, ASCENDER)],
   },
 }

@@ -17,13 +17,13 @@ import { buildBlueprintLines } from './states/blueprint'
 import { buildCityLines } from './states/city'
 import { buildNetworkLines } from './states/network'
 
-export async function buildFilm() {
+export async function buildFilm({ count: poolCount } = {}) {
   const t0 = performance.now()
 
   const wordmark = buildLogotype({ targetWidth: 40 })
   const architecture = buildArchitecture()
 
-  const count = POOL
+  const count = poolCount || POOL
   const anchorCount = Math.min(architecture.anchorCount, count)
 
   // ONE rng for the whole build. Every state draws from it in a fixed order,

@@ -54,6 +54,14 @@ canvas {
   touch-action: pan-y;
 }
 
+/* The shell that holds the frame while the engine streams in. Paper, not a
+   spinner: the film's first beat is an empty page, so the load state and the
+   opening frame are the same image and there is nothing to "finish". */
+.film__shell {
+  height: 100svh;
+  background: var(--paper);
+}
+
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 
 .hero {

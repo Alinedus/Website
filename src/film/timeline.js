@@ -150,10 +150,21 @@ export function stateWeight(key, P) {
   }
 
   // Falling: the morph that takes it out again.
+  //
+  // The film's LAST state has no morph out, so its span is zero and its window
+  // closed at exactly P = 1 — which is precisely the value `prefers-reduced-
+  // motion` pins the film to, since that path HOLDS the resolved final frame
+  // rather than animating to it. A half-open `P >= morphEnd` test therefore
+  // returned 0 for every state at once: no movement was lit, so the camera had
+  // no intent, the look never blended, `reveal` stayed at 0, and the lockup,
+  // the tagline and the invitation all sat at opacity 0. A reduced-motion
+  // visitor got a blank sheet of paper with no way to reach the CTA. A state
+  // that never morphs out never ends.
+  const span = c.morphEnd - c.morphStart
   let fall = 1
-  if (P >= c.morphEnd) return 0
-  if (P > c.morphStart) {
-    fall = 1 - (P - c.morphStart) / (c.morphEnd - c.morphStart || 1)
+  if (span > 0) {
+    if (P >= c.morphEnd) return 0
+    if (P > c.morphStart) fall = 1 - (P - c.morphStart) / span
   }
 
   return Math.min(1, Math.max(0, Math.min(rise, fall)))

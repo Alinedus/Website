@@ -12,6 +12,8 @@ import { PAPER, GRID, RED } from './tokens'
 import { useScrollTarget, useReducedMotion, damp, range } from './useScrollProgress'
 import PointerFX from './PointerFX'
 import { createPointerState, usePointerListeners } from './pointer'
+import { applyQualityOverride } from './quality'
+import { initSmoothScroll, jumpToY } from './smoothScroll'
 
 /**
  * THE FILM.
@@ -33,14 +35,39 @@ import { createPointerState, usePointerListeners } from './pointer'
 const PX_PER_SECOND = 265
 
 /** Blends the whole film's art direction into one look object per frame. */
-function Director({ progress, scrollTarget, look, reduced, intents }) {
+function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
   const { gl } = useThree()
   const smoothed = useRef(reduced ? 1 : 0)
+  // Frame-time watchdog. The tier is a guess made from what the browser is
+  // willing to admit about the hardware; this is the measurement. If the guess
+  // was optimistic, resolution comes down rather than the frame rate.
+  const perf = useRef({ acc: 0, n: 0, dpr: 0, dropped: false })
   const acc = useRef({ ink: new THREE.Color(), haze: new THREE.Color() })
   const clear = useRef(new THREE.Color(PAPER))
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30)
+
+    if (!perf.current.dropped && quality) {
+      const w = perf.current
+      w.acc += delta
+      w.n += 1
+      // Judge over a full second, and only after the first — the opening
+      // frames include shader compilation and would condemn every device.
+      if (w.acc > 1 && w.n > 20) {
+        const avg = w.acc / w.n
+        if (avg > 1 / 45) {
+          const cur = gl.getPixelRatio()
+          const next = Math.max(1, cur * 0.75)
+          if (next < cur - 0.01) gl.setPixelRatio(next)
+          else w.dropped = true
+        } else {
+          w.dropped = true // comfortably inside budget; stop watching
+        }
+        w.acc = 0
+        w.n = 0
+      }
+    }
 
     // Damping the SCROLL — not the camera — is what makes this feel filmed.
     // The wheel is a stuttery input device; the lens must never inherit that.
@@ -140,6 +167,7 @@ export default function Film() {
 
   const stageRef = useRef(null)
   const taglineRef = useRef(null)
+  const cueRef = useRef(null)
   const ctaRef = useRef(null)
   const ctaLabelRef = useRef(null)
   const inkRef = useRef(null)
@@ -164,6 +192,23 @@ export default function Film() {
 
   const scrollTarget = useScrollTarget(!reduced)
 
+  // Decided once, before anything is built. Density adapts; the film does not.
+  const q = useMemo(() => applyQualityOverride(), [])
+
+  // Momentum scrolling. The render loop already DAMPS the scroll, which smooths
+  // the camera — but on a wheel the underlying target still arrives in discrete
+  // notches, and no amount of damping downstream turns steps into momentum.
+  // Lenis fixes the input rather than the symptom. It owns the scroll position
+  // while it runs, so every programmatic jump goes through smoothScroll.js.
+  useEffect(() => initSmoothScroll({ enabled: !reduced }), [reduced])
+
+  // A handle for verification harnesses, which must drive the same scroll path
+  // a real wheel does rather than one Lenis will overwrite.
+  useEffect(() => {
+    window.__filmScrollTo = jumpToY
+    return () => delete window.__filmScrollTo
+  }, [])
+
   // One pointer state for the whole site. Events only store coordinates; every
   // derived value is computed once per frame inside the render loop.
   const pointer = useRef(createPointerState())
@@ -171,7 +216,7 @@ export default function Film() {
 
   useEffect(() => {
     let alive = true
-    buildFilm()
+    buildFilm({ count: q.pool })
       .then((f) => alive && setFilm(f))
       .catch((e) => {
         console.error('film build failed', e)
@@ -180,7 +225,7 @@ export default function Film() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [q])
 
   useEffect(() => {
     const el = stageRef.current
@@ -215,28 +260,12 @@ export default function Film() {
       style={{ height }}
       aria-label="ALINED — Design Intelligence Layer"
     >
-      <a
-        className="skip-link"
-        href="#request-access"
-        onClick={(e) => {
-          // An in-page anchor cannot reach it: the invitation lives inside a
-          // sticky stage, so its document position is the TOP of the section.
-          // Take the scroll to the end of the film and hand it focus there.
-          e.preventDefault()
-          const el = stageRef.current?.parentElement
-          if (el) window.scrollTo({ top: el.offsetTop + el.offsetHeight - window.innerHeight })
-          window.setTimeout(() => ctaRef.current?.querySelector('a')?.focus(), 60)
-        }}
-      >
-        Skip the film — request access
-      </a>
-
       <div className="hero__stage" ref={stageRef}>
         {film && intents && (
           <Canvas
             frameloop={visible ? 'always' : 'never'}
-            dpr={[1, 2]}
-            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+            dpr={q.dpr}
+            gl={{ antialias: q.antialias, alpha: false, powerPreference: 'high-performance' }}
             camera={{ fov: 35, near: 0.1, far: 3000, position: [0, 0, 26] }}
             onCreated={({ gl }) => gl.setClearColor(PAPER, 1)}
           >
@@ -246,6 +275,7 @@ export default function Film() {
               look={look}
               reduced={reduced}
               intents={intents}
+              quality={q}
             />
             <CameraDirector
               progress={progress}
@@ -253,7 +283,7 @@ export default function Film() {
               framing={film.framing}
               look={look}
               pointer={pointer.current}
-              parallax={reduced ? 0 : 1}
+              parallax={reduced ? 0 : q.parallax}
             />
             <PointerFX
               pointer={pointer}
@@ -261,7 +291,7 @@ export default function Film() {
               canvasRef={inkRef}
               ctaRef={ctaRef}
               labelRef={ctaLabelRef}
-              enabled={!reduced}
+              enabled={!reduced && q.ink}
             />
 
             <FilmLayers film={film} progress={progress} look={look} />
@@ -270,6 +300,7 @@ export default function Film() {
               progress={progress}
               taglineRef={taglineRef}
               ctaRef={ctaRef}
+              cueRef={cueRef}
             />
 
             <PointPool
@@ -314,17 +345,17 @@ export default function Film() {
           </a>
         </div>
 
-        <canvas className="film__ink" ref={inkRef} aria-hidden="true" />
+        {q.ink && <canvas className="film__ink" ref={inkRef} aria-hidden="true" />}
 
         <div className="hero__vignette" aria-hidden="true" />
         <div className="hero__grain" aria-hidden="true" />
 
-        {!reduced && !failed && <div className="hero__cue" aria-hidden="true" />}
+        {/* The cue invites the FIRST scroll and then has no further business
+            being on screen — least of all at the finale, where it was still
+            pulsing directly beneath the invitation, telling the visitor to
+            keep going at the exact moment the film asks them to stop. */}
+        {!reduced && !failed && <div className="hero__cue" ref={cueRef} aria-hidden="true" />}
 
-        <h1 className="sr-only">
-          ALINED — a design intelligence layer for architects. Sketch, and your
-          lines become intelligent spatial models.
-        </h1>
       </div>
     </section>
   )
@@ -342,7 +373,7 @@ export default function Film() {
  * lattice's pitch its footprint is two or three beads, and tinting them reads
  * as a short red dash instead of the single round dot the artwork draws.
  */
-function Lockup({ film, progress, taglineRef, ctaRef }) {
+function Lockup({ film, progress, taglineRef, ctaRef, cueRef }) {
   const { size, camera } = useThree()
   const gridMat = useRef()
   const tittleMat = useRef()
@@ -399,6 +430,10 @@ function Lockup({ film, progress, taglineRef, ctaRef }) {
       cta.style.setProperty('--draw', k.toFixed(3))
       cta.style.pointerEvents = k > 0.6 ? 'auto' : 'none'
     }
+
+    // The scroll cue has done its job the moment the film starts moving.
+    const cue = cueRef?.current
+    if (cue) cue.style.opacity = (1 - range(P, 0.004, 0.045)).toFixed(3)
   })
 
   return (
