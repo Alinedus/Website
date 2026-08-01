@@ -9,8 +9,17 @@ import * as THREE from 'three'
  * it. That is the difference between a particle system that turns on and a
  * space that is being discovered by something moving through it.
  */
+/**
+ * The pen-down is at the sheet's lower-left THIRD intersection, not at the
+ * centre of the frame. The very first thing anybody sees on this site is this
+ * point, and it used to be a circle in the exact middle of a blank page —
+ * which is the most-used hero composition on the internet and the one thing
+ * the brief explicitly forbade. See SHEET_X3/SHEET_Y3 in scatterArchitecture.
+ */
+export const DOT_START = [-3.2, -1.9, 0.4]
+
 export const DOT_PATH_POINTS = [
-  [0, 0, 4],
+  DOT_START,
   [2.6, 1.8, -5],
   [-7, 5.5, -22],
   [-17, 2, -45],

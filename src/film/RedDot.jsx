@@ -247,7 +247,15 @@ export default function RedDot({ progress, wordmark, framing, redPos, look, poin
 
     // While it is alone and unsure it hunts. The amplitude dies the moment the
     // field starts answering it, and never returns.
-    const hunt = (1 - range(P, 0.004, 0.05)) * 1.5
+    //
+    // It is ZERO at P = 0. The first frame of the site is a prepared sheet with
+    // its setting-out lines crossing at the lower-left third, and the mark
+    // belongs exactly on that crossing — that intersection IS the composition.
+    // Starting the hunt at full amplitude threw it up to a world unit and a
+    // half off its own mark, so the one frame everybody sees had the pen
+    // hovering somewhere near where it should be. It commits first, then it
+    // starts looking.
+    const hunt = Math.min(range(P, 0, 0.014), 1 - range(P, 0.014, 0.055)) * 1.5
     if (hunt > 0.001) {
       s.target.x += Math.sin(t * 1.7) * 0.5 * hunt + Math.sin(t * 0.61) * 0.9 * hunt
       s.target.y += Math.cos(t * 1.31) * 0.45 * hunt + Math.cos(t * 0.47) * 0.8 * hunt

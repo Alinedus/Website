@@ -78,6 +78,12 @@ export async function buildFilm({ count: poolCount } = {}) {
     count
   )
 
+  // The prepared sheet is present before anything is drawn on it: its marks
+  // carry a negative wake order, which the shader's reveal term resolves to
+  // "already awake" for free (see `appear` in PointPool).
+  const band = states[0]?.sheetBand
+  if (band) for (let i = band[0]; i < band[1]; i++) order[i] = -1
+
   // Framing extents the camera director needs. Measured from the geometry
   // rather than hard-coded, so retuning a state cannot silently crop the shot
   // — which is exactly what had happened: the crane's final distance was the

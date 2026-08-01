@@ -6,13 +6,29 @@
  * A state generator is a PURE function of the shared film context. It returns
  * targets for the ONE persistent point pool:
  *
- *   (ctx) => { pos: Float32Array(N * 4), red: Float32Array(N) }
+ *   (ctx) => { pos: Float32Array(N * 4), red: Float32Array(N), ink: Float32Array(N) }
  *
  *   pos[i*4 + 0..2]  world position of point i in this state
  *   pos[i*4 + 3]     its world DIAMETER here. Zero means "not part of this
  *                    state" — the point is still alive, it simply has no size,
  *                    which is how things vanish without ever being destroyed.
  *   red[i]           0 = ink, 1 = the accent. Never decorative.
+ *   ink[i]           how HARD the mark is pressed, 0..1. Defaults to 1.
+ *
+ * ── Why a mark may be faint ───────────────────────────────────────────────
+ *
+ * Size and weight are different things, and conflating them is what made the
+ * opening read as dust. A drawing is not built out of marks that are all the
+ * same strength: it has construction lines you are meant to see through,
+ * setting-out that is nearly not there, and finished linework that is black.
+ * With only a diameter to work with, a state can say "small" but never
+ * "faint" — so anything meant as TONE came out as a scatter of hard specks,
+ * and the only way to make a surface was to make its marks big, which is what
+ * turned the building into a solid black envelope.
+ *
+ * One float per point, mixed by the morph exactly like `red`, one extra term
+ * in the alpha. Every generator that does not care writes 1 and is
+ * bit-identical to before.
  *
  * Rules the generators must respect, because the film has no cuts:
  *
@@ -55,9 +71,11 @@ const GENERATORS = {
   mark: buildMark,
 }
 
-/** An empty state — every point present, nothing sized. */
+/** An empty state — every point present, nothing sized, every mark full ink. */
 export function emptyState(n = POOL) {
-  return { pos: new Float32Array(n * 4), red: new Float32Array(n) }
+  const ink = new Float32Array(n)
+  ink.fill(1)
+  return { pos: new Float32Array(n * 4), red: new Float32Array(n), ink }
 }
 
 /**
@@ -124,10 +142,11 @@ export function rng(seed) {
 }
 
 /** Write one point's target. */
-export function put(out, i, x, y, z, size, red = 0) {
+export function put(out, i, x, y, z, size, red = 0, ink = 1) {
   out.pos[i * 4] = x
   out.pos[i * 4 + 1] = y
   out.pos[i * 4 + 2] = z
   out.pos[i * 4 + 3] = size
   out.red[i] = red
+  if (out.ink) out.ink[i] = ink
 }

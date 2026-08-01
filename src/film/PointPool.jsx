@@ -73,6 +73,8 @@ const vertexShader = /* glsl */ `
   attribute vec4  aToA;
   attribute float aFromRed;   // 0 ink .. 1 accent
   attribute float aToRed;
+  attribute float aFromInk;   // how hard the mark is pressed, 0..1
+  attribute float aToInk;
   attribute float aSeed;
   attribute float aOrder;     // 0..1 reveal order
 
@@ -95,11 +97,22 @@ const vertexShader = /* glsl */ `
     vec3 pos  = mix(aFromA.xyz, aToA.xyz, uMorph);
     float siz = mix(aFromA.w,   aToA.w,   uMorph);
     float red = mix(aFromRed,   aToRed,   uMorph);
+    // Weight, not size. A drawing has construction lines you see through and
+    // finished linework that is black, and a state can only say that if a mark
+    // can be FAINT — see the contract note in states/index.js.
+    float inkW = mix(aFromInk,  aToInk,  uMorph);
     vSeed = aSeed;
 
     // Motion is applied ON TOP of the morph, so a point is always travelling
     // between two truths while behaving in the manner of the current movement.
-    float amp = uMotionAmp;
+    //
+    // A NEGATIVE wake order marks the prepared sheet — the surface the film is
+    // drawn ON. It is already awake before the reveal reaches it, and it does
+    // not drift: the drawing is unresolved, the paper is not. Without this the
+    // opening movement's brownian amplitude, which is a world unit and a third,
+    // shook a set of rules ruled at a seventh of a unit into noise.
+    float surface = step(aOrder, -0.5);
+    float amp = uMotionAmp * (1.0 - surface);
     if (uMotion == 0) {
       // DRIFT — unresolved. Dies away as a state resolves.
       float settle = 1.0 - abs(uMorph * 2.0 - 1.0);
@@ -208,7 +221,7 @@ const vertexShader = /* glsl */ `
     float nearFade = smoothstep(0.055, 0.42, dr);
     // Ink conservation — see STROKE_FADE.
     float spread = 1.0 / (1.0 + vStretch * STROKE_FADE);
-    vAlpha = appear * nearFade * step(0.0001, siz) * (1.0 + touch * 0.4) * spread;
+    vAlpha = appear * nearFade * step(0.0001, siz) * (1.0 + touch * 0.4) * spread * inkW;
 
     // The intelligence dot lights what it is near. Tight and squared, or it
     // reads as a rash of specks scattered through depth rather than a glow.
@@ -327,6 +340,8 @@ export default function PointPool({ states, count, order, look, progress, redPos
       toA: new Float32Array(count * 4),
       fromRed: new Float32Array(count),
       toRed: new Float32Array(count),
+      fromInk: new Float32Array(count).fill(1),
+      toInk: new Float32Array(count).fill(1),
     }
   }, [count])
 
@@ -396,10 +411,14 @@ export default function PointPool({ states, count, order, look, progress, redPos
         g.attributes.aToA.array.set(states[to].pos)
         g.attributes.aFromRed.array.set(states[from].red)
         g.attributes.aToRed.array.set(states[to].red)
+        if (states[from].ink) g.attributes.aFromInk.array.set(states[from].ink)
+        if (states[to].ink) g.attributes.aToInk.array.set(states[to].ink)
         g.attributes.aFromA.needsUpdate = true
         g.attributes.aToA.needsUpdate = true
         g.attributes.aFromRed.needsUpdate = true
         g.attributes.aToRed.needsUpdate = true
+        g.attributes.aFromInk.needsUpdate = true
+        g.attributes.aToInk.needsUpdate = true
       }
       pair.current = { from, to }
       // A boundary crossing resets morph from 1 to 0 while the geometry is
@@ -464,6 +483,8 @@ export default function PointPool({ states, count, order, look, progress, redPos
         <bufferAttribute attach="attributes-aToA" args={[attrs.toA, 4]} />
         <bufferAttribute attach="attributes-aFromRed" args={[attrs.fromRed, 1]} />
         <bufferAttribute attach="attributes-aToRed" args={[attrs.toRed, 1]} />
+        <bufferAttribute attach="attributes-aFromInk" args={[attrs.fromInk, 1]} />
+        <bufferAttribute attach="attributes-aToInk" args={[attrs.toInk, 1]} />
         <bufferAttribute attach="attributes-aSeed" args={[attrs.seed, 1]} />
         <bufferAttribute attach="attributes-aOrder" args={[order, 1]} />
       </bufferGeometry>
