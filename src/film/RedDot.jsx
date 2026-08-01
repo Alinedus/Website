@@ -24,6 +24,51 @@ import { damp } from './useScrollProgress'
  * disagreement between intent and position is the whole trick.
  */
 
+/**
+ * The dot's material — the only one in the film.
+ *
+ * Glass and chrome were considered and refused: a specular shell would make a
+ * paper-and-graphite world look like every other AI product, and would undo the
+ * discipline the other six movements hold. But a mark CAN have a material
+ * without breaking the world, and the right one is wet ink — a bead of pigment
+ * that has not dried, with a tight highlight and a dark wet rim where it meets
+ * the page. It gains physicality without gaining a single reflection the paper
+ * could not produce.
+ *
+ * The highlight tracks the pointer, so the one object the film treats as alive
+ * is also the one that knows where the hand is.
+ */
+const coreVert = /* glsl */ `
+  varying vec3 vN;
+  varying vec3 vView;
+  void main() {
+    vN = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vView = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`
+
+const coreFrag = /* glsl */ `
+  uniform vec3  uRed;
+  uniform vec2  uLight;   // where the hand is, -1..1
+  varying vec3 vN;
+  varying vec3 vView;
+  void main() {
+    vec3 N = normalize(vN);
+    vec3 L = normalize(vec3(uLight.x * 0.6 - 0.35, uLight.y * 0.6 + 0.55, 0.85));
+
+    // A wet bead is darker where it curves away and carries one tight
+    // highlight — not a broad plastic sheen.
+    float wet  = pow(1.0 - max(dot(N, vView), 0.0), 2.4);
+    float spec = pow(max(dot(reflect(-L, N), vView), 0.0), 42.0);
+
+    vec3 col = uRed * (1.0 - wet * 0.42);
+    col += vec3(1.0) * spec * 0.55;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`
+
 const auraVert = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -139,7 +184,7 @@ function buildDotScore({ wordmark, framing }) {
   }
 }
 
-export default function RedDot({ progress, wordmark, framing, redPos, look }) {
+export default function RedDot({ progress, wordmark, framing, redPos, look, pointer }) {
   const group = useRef()
   const core = useRef()
   const aura = useRef()
@@ -153,6 +198,14 @@ export default function RedDot({ progress, wordmark, framing, redPos, look }) {
     () => ({
       uRed: { value: new THREE.Color(RED) },
       uStrength: { value: 0.17 },
+    }),
+    []
+  )
+
+  const coreUniforms = useMemo(
+    () => ({
+      uRed: { value: new THREE.Color(RED) },
+      uLight: { value: new THREE.Vector2(0, 0) },
     }),
     []
   )
@@ -208,6 +261,10 @@ export default function RedDot({ progress, wordmark, framing, redPos, look }) {
     const scale = r * 1.3 * breath * (look.current.dotScale ?? 1)
     core.current.scale.setScalar(scale)
 
+    if (pointer) {
+      coreUniforms.uLight.value.set(pointer.sx, pointer.sy)
+    }
+
     aura.current.scale.setScalar(scale * 7.5)
     aura.current.quaternion.copy(camera.quaternion) // billboard
     auraUniforms.uStrength.value = damp(
@@ -233,7 +290,11 @@ export default function RedDot({ progress, wordmark, framing, redPos, look }) {
       {/* Hero object — it earns real segments; every other bead is a Point. */}
       <mesh ref={core} renderOrder={3}>
         <sphereGeometry args={[1, 32, 24]} />
-        <meshBasicMaterial color={RED} toneMapped={false} />
+        <shaderMaterial
+          uniforms={coreUniforms}
+          vertexShader={coreVert}
+          fragmentShader={coreFrag}
+        />
       </mesh>
     </group>
   )

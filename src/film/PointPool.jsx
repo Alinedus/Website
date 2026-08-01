@@ -50,6 +50,9 @@ const vertexShader = /* glsl */ `
   uniform float uFogNear;   // as a RATIO of the focus distance, not metres
   uniform float uFogFar;
   uniform float uFocusDist; // camera → look-target distance this frame
+  uniform vec3  uCursor;    // the hand, on the focal plane
+  uniform float uCursorRadius;
+  uniform float uCursorPush; // presence × press
 
   attribute vec4  aFromA;     // xyz target + w size
   attribute vec4  aToA;
@@ -114,6 +117,16 @@ const vertexShader = /* glsl */ `
     }
     // PARALLAX (3) and STILL (6) add nothing by design.
 
+    // ── The hand ──────────────────────────────────────────────────────────
+    // Matter near the pointer lifts toward the viewer and gains weight. Not a
+    // hover state — there is no such thing on the tablet this product runs on
+    // — but a physical response to proximity that a finger produces exactly as
+    // a mouse does. Squared falloff so the influence resolves into a legible
+    // pool of attention instead of a wide, vague wash.
+    float touch = 1.0 - smoothstep(0.0, uCursorRadius, distance(pos, uCursor));
+    touch = touch * touch * uCursorPush;
+    pos += normalize(cameraPosition - pos + vec3(1e-4)) * touch * uCursorRadius * 0.16;
+
     vec4 mv = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mv;
 
@@ -124,7 +137,7 @@ const vertexShader = /* glsl */ `
 
     // A point drifting past the lens must not become a black hole.
     float nearFade = smoothstep(1.5, 11.0, -mv.z);
-    vAlpha = appear * nearFade * step(0.0001, siz);
+    vAlpha = appear * nearFade * step(0.0001, siz) * (1.0 + touch * 0.4);
 
     // The intelligence dot lights what it is near. Tight and squared, or it
     // reads as a rash of specks scattered through depth rather than a glow.
@@ -132,7 +145,7 @@ const vertexShader = /* glsl */ `
     infl *= infl;
     vTint = clamp(max(red, infl * 0.92), 0.0, 1.0);
 
-    float size = siz * uSizeScale * (1.0 + infl * 1.15);
+    float size = siz * uSizeScale * (1.0 + infl * 1.15 + touch * 1.35);
     gl_PointSize = clamp(size * uProjScale / max(-mv.z, 0.001), 1.0, uMaxPx);
 
     // Fog is RELATIVE to whatever the camera is looking at, never absolute.
@@ -177,7 +190,7 @@ const fragmentShader = /* glsl */ `
   }
 `
 
-export default function PointPool({ states, count, order, look, progress, redPos }) {
+export default function PointPool({ states, count, order, look, progress, redPos, pointer }) {
   const geoRef = useRef()
   const matRef = useRef()
   const pair = useRef({ from: -1, to: -1 })
@@ -215,6 +228,9 @@ export default function PointPool({ states, count, order, look, progress, redPos
       uFogNear: { value: 1.6 },
       uFogFar: { value: 6.0 },
       uFocusDist: { value: 30 },
+      uCursor: { value: new THREE.Vector3(0, 0, 1e4) },
+      uCursorRadius: { value: 6 },
+      uCursorPush: { value: 0 },
       uSoft: { value: 0 },
       uInk: { value: new THREE.Color('#0d0d0d') },
       uRed: { value: new THREE.Color('#f5341b') },
@@ -282,6 +298,14 @@ export default function PointPool({ states, count, order, look, progress, redPos
     u.uFogNear.value = L.fogNear
     u.uFogFar.value = L.fogFar
     u.uFocusDist.value = L.focusDist || 30
+
+    // Scaled to the working distance, so the pool of attention is the same
+    // size ON SCREEN whether the camera is 26 units out or 570.
+    const fd = L.focusDist || 30
+    u.uCursor.value.copy(pointer.world)
+    u.uCursorRadius.value = fd * 0.13
+    u.uCursorPush.value =
+      pointer.present * (0.45 + pointer.down * 0.75) * (L.handStrength ?? 1)
     u.uInk.value.copy(L.ink)
     u.uHaze.value.copy(L.haze)
   })

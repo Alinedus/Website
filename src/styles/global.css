@@ -110,45 +110,121 @@ canvas {
   will-change: opacity, transform;
 }
 
+/* ── The hand ────────────────────────────────────────────────────────────── */
+/* Graphite the pointer lays down, above the film and below the type. It is
+   pointer-events:none so it can never intercept the gesture it is drawing. */
+
+.film__ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* The native arrow is replaced by the app's own anchor glyph — see PointerFX.
+   Restored for anything genuinely interactive, and for touch, where there is no
+   cursor to replace and hiding it would only break assistive pointers. */
+@media (hover: hover) and (pointer: fine) {
+  .hero__stage {
+    cursor: none;
+  }
+  .film__cta-link {
+    cursor: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film__ink {
+    display: none;
+  }
+  .hero__stage,
+  .film__cta-link {
+    cursor: auto;
+  }
+}
+
 /* ── The invitation ──────────────────────────────────────────────────────── */
 /* The only interface in ninety seconds, and the only large red object. By the
    time it appears the visitor has been taught, without being told, that red
    means the system understood something. */
 
 .film__cta {
+  --draw: 0; /* how far the ring has stroked itself on */
+  --mx: 0px; /* magnetic offset, written per frame by PointerFX */
+  --my: 0px;
+  --press: 1;
+  --over: 0;
   position: absolute;
   left: 50%;
   bottom: 12%;
-  transform: translateX(-50%);
-  will-change: opacity;
+  z-index: 3;
+  /* The magnet moves the BUTTON, so the transform lives here and the browser
+     only ever composites it — no layout, no paint. */
+  transform: translateX(-50%) translate3d(var(--mx), var(--my), 0) scale(var(--press));
+  will-change: transform;
 }
 
 .film__cta-link {
-  display: inline-block;
-  padding: 14px 30px; /* comfortably past the 44px touch minimum */
-  min-height: 44px;
-  border: 1px solid var(--red);
-  border-radius: 999px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  min-height: 56px; /* comfortably past the 44px touch minimum */
   color: var(--red);
-  background: transparent;
+  text-decoration: none;
+  /* Opacity is driven by the draw, so the label can never be readable before
+     its ring exists. Nothing in this film simply fades in. */
+  opacity: clamp(0, calc(var(--draw) * 1.6 - 0.2), 1);
+}
+
+.film__cta-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.film__cta-ring rect {
+  fill: rgba(245, 52, 27, calc(var(--over) * 0.09));
+  stroke: var(--red);
+  stroke-width: 1;
+  /* pathLength=100, so the dash maths is in percent regardless of geometry. */
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--draw) * 100);
+}
+
+.film__cta-label {
+  position: relative;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.26em;
-  text-indent: 0.26em;
+  /* Arrives by settling, not by appearing. */
+  letter-spacing: calc(0.26em + (1 - var(--draw)) * 0.5em);
+  text-indent: calc(0.26em + (1 - var(--draw)) * 0.5em);
   text-transform: uppercase;
-  text-decoration: none;
-  transition: background 180ms ease, color 180ms ease;
+  white-space: nowrap;
+  will-change: transform;
 }
 
-.film__cta-link:hover,
-.film__cta-link:focus-visible {
-  background: var(--red);
-  color: var(--paper);
-}
-
+/* Focus is keyboard-reachable and never removed — the anchor glyph replaces the
+   cursor, not the focus ring. */
 .film__cta-link:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  outline-offset: 6px;
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film__cta {
+    transform: translateX(-50%);
+  }
+  .film__cta-label {
+    letter-spacing: 0.26em;
+    text-indent: 0.26em;
+  }
 }
 
 /* The scene carries the message visually; this carries it to everyone else —

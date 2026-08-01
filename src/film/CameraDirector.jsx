@@ -25,7 +25,7 @@ import { MOVEMENTS, MOVEMENT_WINDOWS, movementWeight } from './timeline'
 
 const V = () => new THREE.Vector3()
 
-export default function CameraDirector({ progress, intents, framing, look }) {
+export default function CameraDirector({ progress, intents, framing, look, pointer, parallax = 1 }) {
   const { camera, size } = useThree()
 
   const pos = useRef(new THREE.Vector3(0, 0, 26))
@@ -35,6 +35,7 @@ export default function CameraDirector({ progress, intents, framing, look }) {
 
   const acc = useRef({ pos: V(), look: V(), fov: 0, roll: 0, w: 0 })
   const tmp = useRef({ pos: V(), look: V() })
+  const basis = useRef({ dir: V(), right: V(), up: V(), worldUp: new THREE.Vector3(0, 1, 0) })
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30)
@@ -87,11 +88,30 @@ export default function CameraDirector({ progress, intents, framing, look }) {
     camera.position.copy(pos.current)
     camera.lookAt(lookAt.current)
 
+    // ── Parallax ──────────────────────────────────────────────────────────
+    // The viewpoint leans with the hand while the SUBJECT stays framed — the
+    // camera is offset and then re-aimed at the same point, which is true parallax
+    // (near things shift against far ones) rather than a slide of the whole
+    // image. Scaled by the working distance so the lean is the same on screen
+    // in every movement, and gated on presence so an abandoned pointer does not
+    // hold the camera off-axis.
+    const fd = pos.current.distanceTo(lookAt.current)
+    if (pointer && parallax > 0 && pointer.present > 0.001) {
+      const b = basis.current
+      b.dir.copy(lookAt.current).sub(pos.current).normalize()
+      b.right.crossVectors(b.dir, b.worldUp).normalize()
+      b.up.crossVectors(b.right, b.dir).normalize()
+      const amt = fd * 0.028 * parallax * pointer.present
+      camera.position.addScaledVector(b.right, pointer.sx * amt)
+      camera.position.addScaledVector(b.up, pointer.sy * amt)
+      camera.lookAt(lookAt.current)
+    }
+
     // Publish the working distance. Fog, everywhere in the film, is expressed
     // as a ratio of this rather than in metres — the camera's distance to its
     // subject moves by more than an order of magnitude across the movements,
     // and any absolute near/far either does nothing or erases the subject.
-    if (look) look.current.focusDist = pos.current.distanceTo(lookAt.current)
+    if (look) look.current.focusDist = fd
     if (roll.current !== 0) camera.rotateZ(roll.current)
     if (Math.abs(camera.fov - fov.current) > 0.001) {
       camera.fov = fov.current

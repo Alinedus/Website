@@ -10,6 +10,8 @@ import { LOOKS, buildIntents } from './direction'
 import { RUNTIME_S, MOVEMENTS, MOVEMENT_WINDOWS, movementWeight, stateWeight } from './timeline'
 import { PAPER, GRID, RED } from './tokens'
 import { useScrollTarget, useReducedMotion, damp, range } from './useScrollProgress'
+import PointerFX from './PointerFX'
+import { createPointerState, usePointerListeners } from './pointer'
 
 /**
  * THE FILM.
@@ -137,6 +139,8 @@ export default function Film() {
   const stageRef = useRef(null)
   const taglineRef = useRef(null)
   const ctaRef = useRef(null)
+  const ctaLabelRef = useRef(null)
+  const inkRef = useRef(null)
 
   const progress = useRef(reduced ? 1 : 0)
   const redPos = useRef(new THREE.Vector3(0, 0, 4))
@@ -157,6 +161,11 @@ export default function Film() {
   })
 
   const scrollTarget = useScrollTarget(!reduced)
+
+  // One pointer state for the whole site. Events only store coordinates; every
+  // derived value is computed once per frame inside the render loop.
+  const pointer = useRef(createPointerState())
+  usePointerListeners(pointer.current, !reduced)
 
   useEffect(() => {
     let alive = true
@@ -225,6 +234,16 @@ export default function Film() {
               intents={intents}
               framing={film.framing}
               look={look}
+              pointer={pointer.current}
+              parallax={reduced ? 0 : 1}
+            />
+            <PointerFX
+              pointer={pointer}
+              look={look}
+              canvasRef={inkRef}
+              ctaRef={ctaRef}
+              labelRef={ctaLabelRef}
+              enabled={!reduced}
             />
 
             <FilmLayers film={film} progress={progress} look={look} />
@@ -242,6 +261,7 @@ export default function Film() {
               look={look}
               progress={progress}
               redPos={redPos}
+              pointer={pointer.current}
             />
             <RedDot
               progress={progress}
@@ -249,6 +269,7 @@ export default function Film() {
               framing={film.framing}
               redPos={redPos}
               look={look}
+              pointer={pointer.current}
             />
           </Canvas>
         )}
@@ -257,11 +278,24 @@ export default function Film() {
           DESIGN INTELLIGENCE LAYER
         </p>
 
-        <div className="film__cta" ref={ctaRef} style={{ opacity: 0 }}>
-          <a className="film__cta-link" href="mailto:hello@alined.app?subject=ALINED%20access">
-            Request access
+        {/* The invitation is DRAWN, never faded: its ring strokes itself on
+            like every other line in the film, and the label arrives by
+            letterspacing settling rather than by opacity. */}
+        <div className="film__cta" ref={ctaRef}>
+          <a
+            className="film__cta-link"
+            href="mailto:hello@alined.app?subject=ALINED%20access"
+          >
+            <svg className="film__cta-ring" viewBox="0 0 240 56" aria-hidden="true">
+              <rect x="1" y="1" width="238" height="54" rx="27" pathLength="100" />
+            </svg>
+            <span className="film__cta-label" ref={ctaLabelRef}>
+              Request access
+            </span>
           </a>
         </div>
+
+        <canvas className="film__ink" ref={inkRef} aria-hidden="true" />
 
         <div className="hero__vignette" aria-hidden="true" />
         <div className="hero__grain" aria-hidden="true" />
@@ -342,9 +376,8 @@ function Lockup({ film, progress, taglineRef, ctaRef }) {
     const cta = ctaRef.current
     if (cta) {
       const k = Math.max(0, (finale - 0.45) / 0.55)
-      cta.style.opacity = k
+      cta.style.setProperty('--draw', k.toFixed(3))
       cta.style.pointerEvents = k > 0.6 ? 'auto' : 'none'
-      cta.style.transform = `translateX(-50%) translateY(${(1 - k) * 14}px)`
     }
   })
 
