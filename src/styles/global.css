@@ -110,6 +110,47 @@ canvas {
   will-change: opacity, transform;
 }
 
+/* ── The invitation ──────────────────────────────────────────────────────── */
+/* The only interface in ninety seconds, and the only large red object. By the
+   time it appears the visitor has been taught, without being told, that red
+   means the system understood something. */
+
+.film__cta {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  will-change: opacity;
+}
+
+.film__cta-link {
+  display: inline-block;
+  padding: 14px 30px; /* comfortably past the 44px touch minimum */
+  min-height: 44px;
+  border: 1px solid var(--red);
+  border-radius: 999px;
+  color: var(--red);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.film__cta-link:hover,
+.film__cta-link:focus-visible {
+  background: var(--red);
+  color: var(--paper);
+}
+
+.film__cta-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
 /* The scene carries the message visually; this carries it to everyone else —
    screen readers, crawlers, and any browser without WebGL. */
 .sr-only {

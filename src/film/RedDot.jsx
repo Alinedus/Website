@@ -1,0 +1,240 @@
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { RED } from './tokens'
+import { makeDotPath } from './dotPath'
+import { MOVEMENT_WINDOWS } from './timeline'
+import { damp } from './useScrollProgress'
+
+/**
+ * The intelligence dot — the only thing on screen for the whole ninety seconds.
+ *
+ * In the identity this mark belongs to no letter: it floats free above the "d",
+ * and in the app icon it is the only thing besides the "d" at all. So it is the
+ * film's protagonist and it is never recruited into anything. It wakes alone on
+ * an empty page, it goes ahead of the camera through the corridor, it stands on
+ * the drawing while the drawing is measured, it rides a wall up, it remains the
+ * one identifiable point when the city swallows the building, it is the source
+ * the network floods from, it is the core the camera pushes into — and its last
+ * act is to arrive back above the "d".
+ *
+ * What makes a sphere read as alive rather than as a moving object is that it
+ * is never quite where it is told to be. It chases its target through a spring,
+ * so it lags into acceleration and overshoots on arrival; that small constant
+ * disagreement between intent and position is the whole trick.
+ */
+
+const auraVert = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`
+
+const auraFrag = /* glsl */ `
+  uniform vec3  uRed;
+  uniform float uStrength;
+  varying vec2 vUv;
+  void main() {
+    float d = length(vUv - 0.5) * 2.0;
+    float a = pow(1.0 - clamp(d, 0.0, 1.0), 2.6) * uStrength;
+    if (a < 0.003) discard;
+    gl_FragColor = vec4(uRed, a);
+  }
+`
+
+const V = (x, y, z) => new THREE.Vector3(x, y, z)
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+const range = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a || 1)))
+
+/**
+ * Where the dot wants to be, as a function of film progress.
+ *
+ * Written as one function rather than per-movement objects because the dot is
+ * the film's continuity: its position must be defined at every P with no seams,
+ * including inside the overlaps where two movements are both live.
+ */
+function buildDotScore({ wordmark, framing }) {
+  const path = makeDotPath()
+  const home = V(...wordmark.intelligenceDot)
+  const tmp = V(0, 0, 0)
+  const W = MOVEMENT_WINDOWS
+  const local = (P, key) => {
+    const [a, b] = W[key]
+    return range(P, a, b)
+  }
+
+  return (P, out) => {
+    if (P < W.blueprint[0]) {
+      // Movement 1 — the corridor. The field's whole reveal order is derived
+      // from this route, so it must stay exactly what it was.
+      const wake = ease(range(P, 0.03, W.nothing[1] * 0.92))
+      path.getPointAt(Math.min(0.999, wake), tmp)
+      const homing = 1 - Math.pow(1 - range(P, W.nothing[1] * 0.7, W.nothing[1]), 4)
+      return out.copy(tmp).lerp(home, homing)
+    }
+
+    if (P < W.building[0]) {
+      // 2 — standing on the drawing, indexing between dimension junctions in
+      // right angles like a drafting machine. It never takes a diagonal here.
+      const t = local(P, 'blueprint')
+      const stops = [
+        home,
+        V(-wordmark.width * 0.30, wordmark.height * 0.62, 0),
+        V(wordmark.width * 0.12, wordmark.height * 0.62, 0),
+        V(wordmark.width * 0.12, -wordmark.height * 0.30, 0),
+        home,
+      ]
+      const seg = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)))
+      const f = t * (stops.length - 1) - seg
+      const a = stops[seg]
+      const b = stops[seg + 1]
+      // L-path: all of X first, then all of Y. A field of right angles cannot
+      // be mistaken for anything organic.
+      const fx = Math.min(1, f * 2)
+      const fy = Math.max(0, f * 2 - 1)
+      return out.set(
+        a.x + (b.x - a.x) * ease(fx),
+        a.y + (b.y - a.y) * ease(fy),
+        0
+      )
+    }
+
+    if (P < W.city[0]) {
+      // 3 — it rides a wall up. Its height is the hinge's own progress, so the
+      // dot is evidence of the rotation rather than a passenger of it.
+      const t = local(P, 'building')
+      const k = ease(t)
+      return out.set(
+        home.x * (1 - k * 0.4),
+        home.y + k * 9.5,
+        k * 2.2
+      )
+    }
+
+    if (P < W.network[0]) {
+      // 4 — it does not move. The city grows around it, and it is the one
+      // thing that proves the building you drew is still in there.
+      const t = local(P, 'city')
+      return out.set(0, 2.4 + ease(t) * 1.2, 0)
+    }
+
+    if (P < W.intelligence[0]) {
+      // 5 — the source. The flood starts where it stands.
+      const t = local(P, 'network')
+      const a = -Math.PI * 0.2 + t * 0.5
+      const r = framing.cityHalf * 0.06
+      return out.set(Math.cos(a) * r, 1.5 + Math.sin(t * 3) * 0.6, Math.sin(a) * r)
+    }
+
+    if (P < W.resolution[0]) {
+      // 6 — the core the camera is pushing into. It holds the centre.
+      return out.set(0, 0, 0)
+    }
+
+    // 7 — home, exactly where movement 1 left it.
+    const t = local(P, 'resolution')
+    return out.copy(V(0, 0, 0)).lerp(home, ease(Math.min(1, t / 0.72)))
+  }
+}
+
+export default function RedDot({ progress, wordmark, framing, redPos, look }) {
+  const group = useRef()
+  const core = useRef()
+  const aura = useRef()
+
+  const score = useMemo(
+    () => buildDotScore({ wordmark, framing }),
+    [wordmark, framing]
+  )
+
+  const auraUniforms = useMemo(
+    () => ({
+      uRed: { value: new THREE.Color(RED) },
+      uStrength: { value: 0.17 },
+    }),
+    []
+  )
+
+  const st = useRef({
+    pos: V(0, 0, 4),
+    vel: V(0, 0, 0),
+    target: V(0, 0, 4),
+    seeded: false,
+  })
+
+  useFrame(({ clock, camera }, delta) => {
+    const dt = Math.min(delta, 1 / 30) // a backgrounded tab must not teleport it
+    const P = progress.current
+    const t = clock.elapsedTime
+    const s = st.current
+
+    score(P, s.target)
+
+    // While it is alone and unsure it hunts. The amplitude dies the moment the
+    // field starts answering it, and never returns.
+    const hunt = (1 - range(P, 0.004, 0.05)) * 1.5
+    if (hunt > 0.001) {
+      s.target.x += Math.sin(t * 1.7) * 0.5 * hunt + Math.sin(t * 0.61) * 0.9 * hunt
+      s.target.y += Math.cos(t * 1.31) * 0.45 * hunt + Math.cos(t * 0.47) * 0.8 * hunt
+    }
+
+    if (!s.seeded) {
+      s.pos.copy(s.target)
+      s.seeded = true
+    }
+
+    // Stiffens as the film lands. The dot crosses the whole word to reach its
+    // place above the `d`, and a spring soft enough to feel alive on the way
+    // is not stiff enough to have finished when the frame is held — the mark
+    // has to be EXACTLY on the logotype at rest, or the lockup is wrong.
+    const landing = range(P, 0.9, 0.99)
+    const stiff = 34 + landing * 260
+    const damping = 9.5 + landing * 26
+    s.vel.x += ((s.target.x - s.pos.x) * stiff - s.vel.x * damping) * dt
+    s.vel.y += ((s.target.y - s.pos.y) * stiff - s.vel.y * damping) * dt
+    s.vel.z += ((s.target.z - s.pos.z) * stiff - s.vel.z * damping) * dt
+    s.pos.addScaledVector(s.vel, dt)
+
+    group.current.position.copy(s.pos)
+    redPos.current.copy(s.pos)
+
+    // It is a mark, not a light: its size is fixed to the identity's own dot
+    // and only breathes. The one exception is the push-in, where the camera
+    // gets close enough that it must not become a wall of red.
+    const r = wordmark.dotRadius
+    const breath = 1 + Math.sin(t * 2.15) * 0.05
+    const scale = r * 1.3 * breath * (look.current.dotScale ?? 1)
+    core.current.scale.setScalar(scale)
+
+    aura.current.scale.setScalar(scale * 7.5)
+    aura.current.quaternion.copy(camera.quaternion) // billboard
+    auraUniforms.uStrength.value = damp(
+      auraUniforms.uStrength.value,
+      look.current.dotAura ?? 0.17,
+      6,
+      dt
+    )
+  })
+
+  return (
+    <group ref={group}>
+      <mesh ref={aura} renderOrder={2}>
+        <planeGeometry args={[1, 1]} />
+        <shaderMaterial
+          uniforms={auraUniforms}
+          vertexShader={auraVert}
+          fragmentShader={auraFrag}
+          transparent
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Hero object — it earns real segments; every other bead is a Point. */}
+      <mesh ref={core} renderOrder={3}>
+        <sphereGeometry args={[1, 32, 24]} />
+        <meshBasicMaterial color={RED} toneMapped={false} />
+      </mesh>
+    </group>
+  )
+}
