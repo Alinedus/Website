@@ -107,11 +107,18 @@ export default function CameraDirector({ progress, intents, framing, look, point
       camera.lookAt(lookAt.current)
     }
 
-    // Publish the working distance. Fog, everywhere in the film, is expressed
-    // as a ratio of this rather than in metres — the camera's distance to its
-    // subject moves by more than an order of magnitude across the movements,
-    // and any absolute near/far either does nothing or erases the subject.
-    if (look) look.current.focusDist = fd
+    // Publish the working distance AND the world height of the frame at that
+    // distance. Everything spatial in the film is expressed as a ratio of one
+    // of these rather than in metres — the camera's distance to its subject
+    // moves by a factor of two hundred across the movements (3.2 units at the
+    // core, ~900 over the city) and its focal length by a factor of seventeen,
+    // so any absolute radius is right in one shot and absurd in another.
+    // Measured on the shipped build, the dot's influence radius covered 3% of
+    // the frame over the city and 789% of it in the push-in.
+    if (look) {
+      look.current.focusDist = fd
+      look.current.focusHalfH = fd * Math.tan((camera.fov * Math.PI) / 360)
+    }
     if (roll.current !== 0) camera.rotateZ(roll.current)
     if (Math.abs(camera.fov - fov.current) > 0.001) {
       camera.fov = fov.current

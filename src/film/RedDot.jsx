@@ -90,6 +90,25 @@ const auraFrag = /* glsl */ `
   }
 `
 
+/**
+ * The largest slice of the frame the mark may ever occupy, as a fraction of
+ * the frame's world half-height.
+ *
+ * This is the one law that keeps it a MARK. Its world radius is fixed to the
+ * logotype's own dot, which is correct in the two shots where it sits among
+ * the letters and wrong everywhere else, because the frame's world height
+ * moves across the film by a factor of a hundred and sixty. MEASURED on the
+ * shipped build: at the finale the dot covered 4.5% of the frame's half
+ * height; at frame ZERO — the first thing anyone sees — it covered 17%, four
+ * times larger, and read not as a mark on a page but as a red ball. At the
+ * bottom of the push-in it covered the screen.
+ *
+ * The cap only ever SHRINKS, and only when the frame is small, so the finale
+ * and the title card — where the world radius must match the letterforms
+ * exactly — are untouched at every viewport, on a phone as on a desktop.
+ */
+const DOT_MAX_FRAME_FRAC = 0.055
+
 const V = (x, y, z) => new THREE.Vector3(x, y, z)
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const range = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a || 1)))
@@ -254,12 +273,14 @@ export default function RedDot({ progress, wordmark, framing, redPos, look, poin
     group.current.position.copy(s.pos)
     redPos.current.copy(s.pos)
 
-    // It is a mark, not a light: its size is fixed to the identity's own dot
-    // and only breathes. The one exception is the push-in, where the camera
-    // gets close enough that it must not become a wall of red.
+    // It is a MARK, not a light and not an object: its world radius is the
+    // identity's own dot, and it only breathes — capped so that it can never
+    // grow into the frame. See DOT_MAX_FRAME_FRAC.
     const r = wordmark.dotRadius
     const breath = 1 + Math.sin(t * 2.15) * 0.05
-    const scale = r * (wordmark.dotScale ?? 1.3) * breath * (look.current.dotScale ?? 1)
+    const worldScale = r * (wordmark.dotScale ?? 1.3)
+    const cap = (look.current.focusHalfH || 1e4) * DOT_MAX_FRAME_FRAC
+    const scale = Math.min(worldScale, cap) * breath * (look.current.dotScale ?? 1)
     core.current.scale.setScalar(scale)
 
     if (pointer) {

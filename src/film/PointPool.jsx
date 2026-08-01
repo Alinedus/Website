@@ -35,7 +35,22 @@ export const MOTION = {
   STILL: 6, // absolutely still
 }
 
+/** How many bead-widths long a fully-drawn stroke is. */
+const STROKE_LEN = 3.0
+
+/**
+ * INK IS CONSERVED. A mark dragged into a stroke spreads the same pigment over
+ * a longer path, so it gets thinner and lighter — which is both what graphite
+ * actually does and the thing that stops a fast morph from flooding the frame.
+ * Five thousand full-weight strokes at full length is a scribble; five thousand
+ * conserved ones is a drawing.
+ */
+const STROKE_THIN = 0.55
+const STROKE_FADE = 0.42
+
 const vertexShader = /* glsl */ `
+  #define STROKE_LEN ${STROKE_LEN.toFixed(1)}
+  #define STROKE_FADE ${STROKE_FADE.toFixed(2)}
   uniform float uTime;
   uniform float uMorph;       // 0..1 between the two resident states
   uniform int   uMotion;      // MOTION.*
@@ -61,10 +76,16 @@ const vertexShader = /* glsl */ `
   attribute float aSeed;
   attribute float aOrder;     // 0..1 reveal order
 
+  uniform float uMorphRate;   // |d(morph)/dt| — how hard the film is drawing
+  uniform float uStroke;      // per-movement willingness to elongate
+  uniform vec2  uViewport;
+
   varying float vAlpha;
   varying float vTint;
   varying float vFog;
   varying float vSeed;
+  varying vec2  vDir;      // screen-space stroke direction, unit
+  varying float vStretch;  // 0 = bead, 1 = fully drawn stroke
 
   // Cheap 3D value-ish noise. Not for looks — for de-correlating per-point
   // motion so a field never pulses as one body.
@@ -130,14 +151,64 @@ const vertexShader = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mv;
 
+    // ── THE MARK ELONGATES ALONG ITS OWN TRAVEL ───────────────────────────
+    //
+    // This is a film about architectural DRAWING whose every mark was a
+    // perfect circle. Circles are not how anyone has ever drawn anything: a
+    // drawn mark has a direction, because a hand moved. So a point at rest is
+    // a BEAD — the identity's own unit, the thing the logotype is built from —
+    // and a point in motion is a STROKE, elongated along the path it is
+    // travelling, tapering back to a bead when it arrives.
+    //
+    // The rate comes from the MORPH, which comes from the scroll, which comes
+    // from the visitor. So the film is not drawn for them, it is drawn BY
+    // them: stop scrolling and five thousand strokes settle into beads; move
+    // and the whole frame is graphite again. Nothing here fades — matter
+    // travels, and travelling is what leaves a line.
+    vec3 travel = aToA.xyz - aFromA.xyz;
+    float speed = length(travel) * uMorphRate;
+    vStretch = uStroke * (1.0 - exp(-speed * 0.085));
+
+    // Direction in SCREEN space, so the stroke lies along the path the eye
+    // actually sees it take — not along a world axis that may project to a
+    // point. Taken from a short probe rather than a derivative, which keeps it
+    // correct under any projection including the film's 3.4-degree long lens.
+    vec2 dir = vec2(1.0, 0.0);
+    if (vStretch > 0.001) {
+      vec4 ahead = projectionMatrix * (modelViewMatrix * vec4(pos + travel * 0.02, 1.0));
+      vec2 a = gl_Position.xy / max(gl_Position.w, 1e-4) * uViewport;
+      vec2 b = ahead.xy / max(ahead.w, 1e-4) * uViewport;
+      vec2 d = b - a;
+      float len = length(d);
+      // A mark whose travel projects to nothing has no direction to draw in,
+      // and normalising it would spin the sprite on noise.
+      if (len > 0.5) dir = d / len; else vStretch = 0.0;
+    }
+    vDir = dir;
+
     // ── Reveal ────────────────────────────────────────────────────────────
     // A multiplier, never an offset: an offset leaves points whose order
     // approaches 1.0 permanently below full opacity.
     float appear = clamp((uReveal * uRevealLead - aOrder) * 7.0, 0.0, 1.0);
 
-    // A point drifting past the lens must not become a black hole.
-    float nearFade = smoothstep(1.5, 11.0, -mv.z);
-    vAlpha = appear * nearFade * step(0.0001, siz) * (1.0 + touch * 0.4);
+    // Depth, as a RATIO of what the camera is looking at. Everything below
+    // this line is framing-independent because of it.
+    float dr = (-mv.z) / max(uFocusDist, 0.001);
+
+    // A point drifting past the lens must not become a black hole — but this
+    // shell has to be relative for the same reason the fog does. Held in
+    // METRES it was correct in the corridor and catastrophic in the macro
+    // push-in: that shot ends 3.2 units from its subject, so a fade killing
+    // everything inside 11 units erased the ENTIRE subject at exactly the
+    // moment the camera arrived to look at it. The intelligence state builds
+    // nested laminae, filaments and a core, and none of it was ever on screen
+    // — the climax was a red sphere over the alpha-faded ghost of its own
+    // content. At the corridor's working distance these ratios reproduce the
+    // old shell to within a unit, so what was right stays right.
+    float nearFade = smoothstep(0.055, 0.42, dr);
+    // Ink conservation — see STROKE_FADE.
+    float spread = 1.0 / (1.0 + vStretch * STROKE_FADE);
+    vAlpha = appear * nearFade * step(0.0001, siz) * (1.0 + touch * 0.4) * spread;
 
     // The intelligence dot lights what it is near. Tight and squared, or it
     // reads as a rash of specks scattered through depth rather than a glow.
@@ -146,7 +217,19 @@ const vertexShader = /* glsl */ `
     vTint = clamp(max(red, infl * 0.92), 0.0, 1.0);
 
     float size = siz * uSizeScale * (1.0 + infl * 1.15 + touch * 1.35);
-    gl_PointSize = clamp(size * uProjScale / max(-mv.z, 0.001), 1.0, uMaxPx);
+    float px = clamp(size * uProjScale / max(-mv.z, 0.001), 1.0, uMaxPx);
+    // The sprite must be square and large enough to CONTAIN the stroke, so the
+    // quad grows with the elongation and the fragment carves the mark out of
+    // it. Clamped after the fact so a fast morph can never blow the fill
+    // budget on a mobile GPU.
+    float grow = 1.0 + vStretch * STROKE_LEN;
+    gl_PointSize = min(px * grow, uMaxPx * 3.2);
+
+    // A point sprite is always centred on its vertex, so a trailing stroke has
+    // to be bought by moving the SPRITE forward by half its own length. Done
+    // in clip space against the real viewport, which keeps it exact under
+    // every focal length the film uses.
+    gl_Position.xy += vDir * (gl_PointSize - px) * 0.5 / uViewport * gl_Position.w;
 
     // Fog is RELATIVE to whatever the camera is looking at, never absolute.
     // Across the film the camera's working distance moves from ~26 units (the
@@ -155,12 +238,13 @@ const vertexShader = /* glsl */ `
     // entirely — the plan renders as a ghost, which is exactly what it did.
     // Expressed as a ratio of the focus distance it is framing-independent,
     // and it is correct on every aspect ratio for free.
-    float dr = (-mv.z) / max(uFocusDist, 0.001);
     vFog = smoothstep(uFogNear, uFogFar, dr);
   }
 `
 
 const fragmentShader = /* glsl */ `
+  #define STROKE_LEN ${STROKE_LEN.toFixed(1)}
+  #define STROKE_THIN ${STROKE_THIN.toFixed(2)}
   uniform vec3  uInk;
   uniform vec3  uRed;
   uniform vec3  uHaze;    // what depth fades TO — the current ground colour
@@ -170,16 +254,50 @@ const fragmentShader = /* glsl */ `
   varying float vTint;
   varying float vFog;
   varying float vSeed;
+  varying vec2  vDir;
+  varying float vStretch;
 
   void main() {
-    vec2  uv = gl_PointCoord - 0.5;
-    float d  = length(uv);
+    vec2 uv = gl_PointCoord - 0.5;
+
+    // ── Bead, or stroke ───────────────────────────────────────────────────
+    // The sprite was GROWN to hold the stroke, so undo that first to get back
+    // into bead units, then measure distance to a SEGMENT instead of to a
+    // point. A capsule of zero length is exactly a circle, so a settled mark
+    // is bit-identical to what it was before any of this existed — every
+    // profile below is untouched at rest.
+    float L = vStretch * STROKE_LEN;
+    vec2 p = uv * (1.0 + L);
+    if (L > 0.001) {
+      vec2 t = vDir;
+      float s = dot(p, t);
+      float q = dot(p, vec2(-t.y, t.x));
+      // The spine is centred on the sprite; the VERTEX stage has already
+      // shifted the whole sprite forward by half its length, so what lands on
+      // the point's true position is the stroke's HEAD and the body trails
+      // behind it. That is the difference between a mark being laid down and
+      // a dash being carried along.
+      // Thinner as it lengthens — the same pigment over a longer path.
+      p = vec2(s - clamp(s, -L * 0.5, L * 0.5), q * (1.0 + L * STROKE_THIN));
+    }
+    float d = length(p);
+    if (d > 0.5) discard;
 
     // Two shapes in one: a hard-edged bead (the identity's construction) and a
     // soft node (a thing that emits rather than is drawn). Movements choose.
+    //
+    // The emissive profile is a CORE plus a halo, not a single falloff. A lone
+    // pow() curve has no plateau, so every mark is its own dimmest possible
+    // version of itself and a field of them reads as cotton wool — which is
+    // exactly what the night movements looked like. A real light has a small
+    // saturated centre that holds its value and a fast skirt around it; that
+    // is what makes a thousand of them read as a thousand LIGHTS rather than
+    // as one soft mass.
     float aa   = fwidth(d);
     float hard = 1.0 - smoothstep(0.5 - aa, 0.5, d);
-    float soft = pow(clamp(1.0 - d * 2.0, 0.0, 1.0), 2.2);
+    float core = 1.0 - smoothstep(0.10, 0.19, d);
+    float halo = pow(clamp(1.0 - d * 2.0, 0.0, 1.0), 2.6);
+    float soft = clamp(core + halo * 0.62, 0.0, 1.0);
     float mask = mix(hard, soft, uSoft);
     if (mask < 0.004) discard;
 
@@ -223,6 +341,9 @@ export default function PointPool({ states, count, order, look, progress, redPos
       uRedPos: { value: new THREE.Vector3() },
       uRedRadius: { value: 6 },
       uProjScale: { value: 1000 },
+      uMorphRate: { value: 0 },
+      uStroke: { value: 1 },
+      uViewport: { value: new THREE.Vector2(1, 1) },
       uSizeScale: { value: 1 },
       uMaxPx: { value: 40 },
       uFogNear: { value: 1.6 },
@@ -256,9 +377,12 @@ export default function PointPool({ states, count, order, look, progress, redPos
     []
   )
 
-  useFrame((state) => {
+  const morphRef = useRef({ last: 0, rate: 0 })
+
+  useFrame((state, delta) => {
     const fovRad = (camera.fov * Math.PI) / 180
     uniforms.uProjScale.value = gl.domElement.height / (2 * Math.tan(fovRad / 2))
+    uniforms.uViewport.value.set(gl.domElement.width * 0.5, gl.domElement.height * 0.5)
 
     const P = progress.current
     const { from, to, morph } = resolveStates(P)
@@ -278,11 +402,28 @@ export default function PointPool({ states, count, order, look, progress, redPos
         g.attributes.aToRed.needsUpdate = true
       }
       pair.current = { from, to }
+      // A boundary crossing resets morph from 1 to 0 while the geometry is
+      // continuous. Measuring rate across it would report an enormous phantom
+      // velocity and flick the whole field into full strokes for one frame.
+      morphRef.current.last = morph
     }
 
     const u = uniforms
     u.uTime.value = state.clock.elapsedTime
     u.uMorph.value = morph
+
+    // How hard the film is being drawn, right now. The rate is smoothed
+    // asymmetrically — it takes the peak immediately and releases slowly — so
+    // a stroke appears the instant the hand moves and RELAXES into its bead
+    // rather than snapping back the moment the scroll stops.
+    {
+      const dt = Math.max(1e-4, Math.min(delta, 1 / 20))
+      const inst = Math.abs(morph - morphRef.current.last) / dt
+      morphRef.current.last = morph
+      const m = morphRef.current
+      m.rate = inst > m.rate ? inst : m.rate + (inst - m.rate) * (1 - Math.exp(-4.5 * dt))
+      u.uMorphRate.value = m.rate
+    }
     u.uRedPos.value.copy(redPos.current)
 
     // Every look parameter is published by the movement director, so the pool
@@ -292,6 +433,7 @@ export default function PointPool({ states, count, order, look, progress, redPos
     u.uMotionAmp.value = L.motionAmp
     u.uReveal.value = L.reveal
     u.uSizeScale.value = L.sizeScale
+    u.uStroke.value = L.stroke ?? 1
     u.uMaxPx.value = L.maxPx
     u.uSoft.value = L.soft
     u.uRedRadius.value = L.redRadius

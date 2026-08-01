@@ -2,12 +2,17 @@
   --paper: #faf6ee;
   --ink: #0d0d0d;
   --red: #f5341b;
-  /* The brand red measures 3.63:1 on paper — it fails WCAG's 4.5:1 for normal
+  /* The brand red measures 3.61:1 on paper — it fails WCAG's 4.5:1 for normal
      text, and every piece of red type on this site is small. So the MARK keeps
      the brand colour, which is not text and is not held to that ratio, and TYPE
-     gets a darker cut of the same hue at 4.88:1. Standard practice for a brand
-     colour that cannot carry body copy. */
-  --red-text: #ce2c13;
+     gets a darker cut of the same hue.
+
+     MEASURED, on the composited frame rather than on the token: the previous
+     cut gave 4.88:1 against flat paper but only 4.54:1 where the type actually
+     sits, because the vignette darkens the page beneath it — a 1% margin on a
+     limit, which is not a pass, it is a rounding error. This cut measures
+     5.18:1 vignetted and 5.56:1 flat, so it holds anywhere on the page. */
+  --red-text: #be2811;
   --grid: #e2dccf;
 
   --font-ui: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
@@ -15,16 +20,18 @@
 }
 
 /* Outfit — SIL Open Font License 1.1, see /fonts/Outfit-LICENSE.txt.
-   Self-hosted deliberately: the wordmark is built by rasterising this face and
-   sampling it, so a font that fails to arrive would change the logo's geometry.
-   `block` (not `swap`) for the same reason — sampling a fallback and then
-   reflowing would rebuild the entire bead field mid-scene. */
+   `swap`, not `block`. `block` was right when the wordmark was built by
+   rasterising this face and sampling it, because a fallback would have changed
+   the LOGO's geometry. The logotype is now authored as geometry (logotype.js)
+   and this face dresses only the tagline and the CTA label, so blocking their
+   paint on a font download buys nothing and costs up to three seconds of
+   invisible text on a slow connection. */
 @font-face {
   font-family: 'Outfit';
   src: url('/fonts/Outfit-Regular.ttf') format('truetype');
   font-weight: 100 900;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 * {
@@ -50,8 +57,13 @@ body {
 
 canvas {
   display: block;
-  /* the canvas is scenery; the page scrolls straight through it */
-  touch-action: pan-y;
+  /* The canvas is scenery; the page scrolls straight through it. `pinch-zoom`
+     is NOT optional: `pan-y` alone tells the browser this element handles
+     everything else itself, and because the canvas covers the viewport that
+     disabled magnification for the ENTIRE SITE on every touch device. Anyone
+     who needs to zoom — which is the population WCAG 1.4.4 exists for — was
+     locked out of a page whose smallest type is 11px. */
+  touch-action: pan-y pinch-zoom;
 }
 
 /* The shell that holds the frame while the engine streams in. Paper, not a
@@ -84,6 +96,7 @@ canvas {
 .hero__grain {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
   opacity: 0.05;
   mix-blend-mode: multiply;
@@ -92,9 +105,14 @@ canvas {
 
 /* Light falloff toward the frame edge. Keeps the bright paper from feeling
    like an empty div. */
+/* Atmosphere sits over the SCENE and under everything that is read. It used
+   to sit above the tagline and below the CTA — the same wash darkening one
+   piece of red type and not the other — which quietly spent contrast budget
+   that had been computed against flat paper. */
 .hero__vignette {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
   background: radial-gradient(
     ellipse 78% 68% at 50% 46%,
@@ -111,6 +129,7 @@ canvas {
 
 .hero__tagline {
   position: absolute;
+  z-index: 3;
   left: 50%;
   top: 50%;
   transform: translate(-50%, 0);
@@ -140,11 +159,15 @@ canvas {
 /* The native arrow is replaced by the app's own anchor glyph — see PointerFX.
    Restored for anything genuinely interactive, and for touch, where there is no
    cursor to replace and hiding it would only break assistive pointers. */
+/* Hiding the native arrow is only safe where the app's own anchor glyph is
+   actually being drawn. That glyph lives on the graphite canvas, which the
+   LOW quality tier does not mount — so on any fine-pointer device that probed
+   low (software GL, a weak integrated chip, a small laptop), this hid the
+   cursor and drew nothing in its place. The visitor lost their pointer on a
+   19,000px page. The class is set by the film only when the canvas exists. */
 @media (hover: hover) and (pointer: fine) {
-  .hero__stage {
-    cursor: none;
-  }
-  .film__cta-link {
+  .hero__stage.has-glyph-cursor,
+  .hero__stage.has-glyph-cursor .film__cta-link {
     cursor: none;
   }
 }
@@ -173,7 +196,7 @@ canvas {
   position: absolute;
   left: 50%;
   bottom: 12%;
-  z-index: 3;
+  z-index: 4;
   /* The magnet moves the BUTTON, so the transform lives here and the browser
      only ever composites it — no layout, no paint. */
   transform: translateX(-50%) translate3d(var(--mx), var(--my), 0) scale(var(--press));
@@ -248,7 +271,12 @@ canvas {
    the moment it is focused, and the first thing in the tab order. */
 
 .skip-link {
-  position: absolute;
+  /* FIXED, not absolute. The page is nearly twenty thousand pixels tall and
+     this link is the only way out of the film; anchored to the document it
+     scrolled off-screen with everything else, so the one control that exists
+     for keyboard and screen-reader users was invisible at precisely the moment
+     they needed it. It is only ever painted when focused. */
+  position: fixed;
   top: 14px;
   left: 50%;
   z-index: 10;
@@ -338,4 +366,62 @@ canvas {
   .hero__cue {
     display: none;
   }
+}
+
+
+/* ── When the engine cannot run ──────────────────────────────────────────── */
+/* WebGL is refused by locked-down browsers, blocklisted drivers and low-power
+   modes, and a 700KB chunk can simply fail to arrive. Without this the site
+   was a blank 19,700px cream rectangle containing one invisible link: not a
+   degraded experience, an absent one. The fallback is the film's last frame
+   said in words, and it collapses the scroll it can no longer drive. */
+.hero--failed {
+  height: 100svh !important;
+}
+
+.film__fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 32px;
+  text-align: center;
+}
+
+.film__fallback-mark {
+  font-size: clamp(44px, 9vw, 108px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.film__fallback-mark::after {
+  content: '';
+  display: inline-block;
+  width: 0.16em;
+  height: 0.16em;
+  margin-left: 0.06em;
+  vertical-align: 0.62em;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.film__fallback-line {
+  color: var(--red-text);
+  font-size: clamp(10px, 1vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+}
+
+.film__fallback-note {
+  max-width: 46ch;
+  color: rgba(13, 13, 13, 0.72);
+  font-size: 14px;
+  line-height: 1.6;
 }

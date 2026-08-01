@@ -32,90 +32,151 @@ import { PAPER, INK, RED } from './tokens'
 
 const c = (hex) => new THREE.Color(hex)
 
-/** Paper-register look — the film's default ground truth. */
-const DAY = {
-  ink: c(INK),
-  haze: c(PAPER),
-  soft: 0,
-  fogNear: 1.7,
-  fogFar: 6.5,
+/**
+ * ── THE REGISTER, AND WHY IT IS ONE NUMBER ────────────────────────────────
+ *
+ * Four movements are drawn as ink on paper; two are drawn as light in the
+ * dark. That is a single directed quantity — `night` — and it has to be
+ * modelled as one, because the obvious implementation is broken in a way that
+ * is invisible in the code and fatal on screen.
+ *
+ * The obvious implementation blends the two palettes: paper→black and
+ * ink→light, both linearly, across a movement hand-off. Both channels then
+ * pass through their own midpoint AT THE SAME TIME, and the midpoint of
+ * near-black and near-white is the same grey. MEASURED on the shipped build:
+ * at P = 0.90 — the film's climax, the reveal of the mark — the marks were
+ * #aeaba3 on a #bdbab4 ground. That is a contrast ratio of 1.09:1. For about
+ * two and a half seconds of scrolling the film was not dim, it was ABSENT,
+ * twice: once at the city→network hand-off and once over the finale. The
+ * grey-pink mush was not a shader bug. It was the palette's own arithmetic.
+ *
+ * So the two channels are moved on OFFSET schedules. The ground darkens over
+ * the first half of the swap; the marks only ignite over the second. They
+ * never cross at grey — they cross at BLACK, which is not a failure but the
+ * oldest transition in cinema, a dip to black at an act break. It lasts about
+ * four tenths of a second, and the red dot, whose material is unlit and
+ * therefore register-independent, is the one thing still visible through it.
+ * The film goes dark, the intelligence is all that is left, and the world
+ * comes back as light.
+ */
+const PAPER_C = c(PAPER)
+const INK_C = c(INK)
+const NIGHT_HAZE = c('#0b0a09')
+const NIGHT_INK = c('#f4efe4')
+
+const sstep = (a, b, x) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a || 1)))
+  return t * t * (3 - 2 * t)
 }
 
-/** Night register. Ink and paper swap ROLES rather than being recoloured, so
- *  the palette never gains a hue it did not already own. */
-const NIGHT = {
-  ink: c('#f4efe4'), // marks are now light
-  haze: c('#0b0a09'), // depth fades to dark
-  soft: 1,
-  fogNear: 1.5,
-  fogFar: 5.0,
+/** Where the ground has got to, and where the marks have got to. Offset. */
+export const REGISTER_BG_IN = 0.46
+export const REGISTER_INK_IN = 0.54
+
+/**
+ * Resolve the register into its two colours plus the two scalars that ride
+ * with it. Pure; writes into caller-owned colours so the frame loop allocates
+ * nothing.
+ */
+export function resolveRegister(night, ink, haze) {
+  const bgK = sstep(0, REGISTER_BG_IN, night)
+  const inkK = sstep(REGISTER_INK_IN, 1, night)
+  haze.copy(PAPER_C).lerp(NIGHT_HAZE, bgK)
+  ink.copy(INK_C).lerp(NIGHT_INK, inkK)
+  return {
+    // A mark is DRAWN on paper and EMITS in the dark. Same schedule as the
+    // ink's ignition, so the two can never disagree about which world it is.
+    soft: inkK,
+    // How deep into the crossing we are: 1 exactly at the black frame. The
+    // dot's aura swells here so the blackout reads as the intelligence taking
+    // the room, rather than as the renderer having died.
+    blackout: sstep(0.18, REGISTER_BG_IN, night) * sstep(0.82, REGISTER_INK_IN, night),
+  }
 }
 
 export const LOOKS = {
   nothing: {
-    ...DAY,
+    night: 0,
+    stroke: 1.0,
     motion: MOTION.DRIFT,
     motionAmp: 1.0,
     sizeScale: 1,
     maxPx: 40,
-    redRadius: 6,
+    redFrac: 0.62,
+    // The corridor's look-target is only a few units ahead of the lens while
+    // the field runs a hundred units deep, so a ratio tuned for a framed
+    // subject fogs almost everything: the opening read as grey dust rather
+    // than as ink appearing on paper. Wide ratios keep the near field BLACK.
+    fogNear: 3.4,
+    fogFar: 16.0,
   },
   blueprint: {
-    ...DAY,
+    night: 0,
+    stroke: 0.55,
     motion: MOTION.DRAFT,
     motionAmp: 0.35,
     sizeScale: 1,
     maxPx: 26,
-    redRadius: 3,
-    // The negative print is a full-frame event, driven separately — see
-    // GroundPlate. The pool only needs to know its marks may invert.
-    invertible: true,
+    redFrac: 0.15,
+    fogNear: 1.7,
+    fogFar: 6.5,
   },
   building: {
-    ...DAY,
+    night: 0,
+    stroke: 1.0,
     motion: MOTION.SETTLE,
     motionAmp: 0.5,
     sizeScale: 1,
     maxPx: 24,
-    redRadius: 4,
+    redFrac: 0.26,
+    fogNear: 1.7,
+    fogFar: 6.5,
   },
   city: {
-    ...DAY,
+    night: 0,
+    stroke: 0.7,
     motion: MOTION.PARALLAX,
     motionAmp: 0,
     sizeScale: 0.85,
     maxPx: 14,
-    redRadius: 7,
+    redFrac: 0.11,
     // Aerial perspective — this movement's exclusive palette event. Tight
     // ratios so distant blocks genuinely dissolve into the haze.
     fogNear: 0.9,
     fogFar: 2.8,
   },
   network: {
-    ...NIGHT,
+    night: 1,
+    stroke: 1.25,
     motion: MOTION.PULSE,
     motionAmp: 0.5,
     sizeScale: 1.15,
     maxPx: 22,
-    redRadius: 10,
+    redFrac: 0.4,
+    fogNear: 1.5,
+    fogFar: 5.0,
   },
   intelligence: {
-    ...NIGHT,
+    night: 1,
+    stroke: 1.0,
     motion: MOTION.FLOW,
     motionAmp: 0.35,
     sizeScale: 1.3,
     maxPx: 30,
-    redRadius: 14,
+    redFrac: 0.34,
     fogNear: 1.2,
     fogFar: 4.0,
   },
   resolution: {
-    ...DAY,
+    night: 0,
+    stroke: 0.35,
     motion: MOTION.STILL,
     motionAmp: 0,
     sizeScale: 1,
     maxPx: 44,
-    redRadius: 3,
+    redFrac: 0.085,
+    fogNear: 1.7,
+    fogFar: 6.5,
   },
 }
 
@@ -271,8 +332,19 @@ export function buildIntents(framing) {
     // ── 7 · pull-back reveal ──────────────────────────────────────────────
     // The reverse of everything. It lands on the exact framing movement 1
     // resolved to, so the film closes the loop it opened.
+    // A reveal LEAVES. Symmetric easing was the wrong instinct here: it holds
+    // the camera almost still through the first third, so the film's register
+    // had already returned to paper while the lens was still buried three
+    // units inside the core with nothing resolvable in frame. MEASURED at
+    // P = 0.889 — a fifth of the way into the reveal — the working distance
+    // was 3.6 units of a 91-unit journey. The audience was watching the
+    // climax's debris, not the mark.
+    //
+    // So it breaks away immediately and spends its time SETTLING, which is
+    // also what a real pull-back does: the operator lets go, and the last
+    // second is the frame coming to rest.
     resolution(t, { aspect }) {
-      const k = ease(t)
+      const k = 1 - Math.pow(1 - t, 2.4)
       const d = frame(wordHalfW * 1.62, wordHalfH * 5.2, 35, aspect, 26)
       return {
         pos: V(0, 0, lerp(3.2, d, k)),

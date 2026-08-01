@@ -20,7 +20,18 @@ export function useScrollTarget(enabled) {
       const el = document.getElementById('hero')
       if (!el) return
       // Distance the sticky stage can travel before the section releases.
-      const travel = el.offsetHeight - window.innerHeight
+      //
+      // Measured against the STAGE, not `window.innerHeight`. The section is
+      // sized in `svh` — the *small* viewport height, which by definition does
+      // not change when a mobile browser's URL bar shows or hides — while
+      // innerHeight does. Mixing the two meant the denominator moved by up to
+      // ~10% mid-scroll on iOS and Android: the film's progress jumped
+      // backwards the moment the toolbar reappeared, which is the one thing a
+      // scrub-driven camera must never do. The stage IS the 100svh element, so
+      // reading its height keeps both sides of the division in one unit system.
+      const stage = el.firstElementChild
+      const vh = stage ? stage.offsetHeight : window.innerHeight
+      const travel = el.offsetHeight - vh
       const y = window.scrollY - el.offsetTop
       target.current = travel > 0 ? Math.min(1, Math.max(0, y / travel)) : 0
     }

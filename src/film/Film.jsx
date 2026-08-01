@@ -6,7 +6,7 @@ import LineLayer from './LineLayer'
 import RedDot from './RedDot'
 import CameraDirector from './CameraDirector'
 import { buildFilm } from './context'
-import { LOOKS, buildIntents } from './direction'
+import { LOOKS, buildIntents, resolveRegister } from './direction'
 import { RUNTIME_S, MOVEMENTS, MOVEMENT_WINDOWS, movementWeight, stateWeight } from './timeline'
 import { PAPER, GRID, RED } from './tokens'
 import { useScrollTarget, useReducedMotion, damp, range } from './useScrollProgress'
@@ -33,6 +33,14 @@ import { initSmoothScroll, jumpToY } from './smoothScroll'
  * read as an unhurried 15-20 seconds.
  */
 const PX_PER_SECOND = 265
+
+/**
+ * The frame's world half-height where the push-in begins. Grain and mark are
+ * held at their true world size at or above this, and shrink in step with the
+ * frame below it — so the hand-off into the movement is exactly continuous and
+ * no other shot is touched.
+ */
+const SCREEN_LOCK_REF_H = 21
 
 /** Blends the whole film's art direction into one look object per frame. */
 function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
@@ -79,14 +87,13 @@ function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
 
     // ── Blend every live movement's look ──────────────────────────────────
     const a = acc.current
-    a.ink.setRGB(0, 0, 0)
-    a.haze.setRGB(0, 0, 0)
     let w = 0
+    let night = 0
     let motionAmp = 0
     let sizeScale = 0
     let maxPx = 0
-    let soft = 0
-    let redRadius = 0
+    let redFrac = 0
+    let stroke = 0
     let fogNear = 0
     let fogFar = 0
     let bestW = -1
@@ -96,17 +103,15 @@ function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
       const k = movementWeight(m.key, P)
       if (k <= 0) continue
       const L = LOOKS[m.key]
-      a.ink.r += L.ink.r * k
-      a.ink.g += L.ink.g * k
-      a.ink.b += L.ink.b * k
-      a.haze.r += L.haze.r * k
-      a.haze.g += L.haze.g * k
-      a.haze.b += L.haze.b * k
+      // The REGISTER is blended as a scalar and resolved to colour afterwards.
+      // Averaging the two palettes' colours directly is what put the film's
+      // climax at 1.09:1 contrast — see resolveRegister in direction.js.
+      night += L.night * k
       motionAmp += L.motionAmp * k
       sizeScale += L.sizeScale * k
       maxPx += L.maxPx * k
-      soft += L.soft * k
-      redRadius += L.redRadius * k
+      redFrac += L.redFrac * k
+      stroke += L.stroke * k
       fogNear += L.fogNear * k
       fogFar += L.fogFar * k
       w += k
@@ -122,14 +127,21 @@ function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
       const L = look.current
       L.motion = motion
       L.motionAmp = motionAmp / w
-      L.sizeScale = sizeScale / w
       L.maxPx = maxPx / w
-      L.soft = soft / w
-      L.redRadius = redRadius / w
+      L.stroke = stroke / w
+      // A FRACTION of the frame, resolved to metres by the pool against the
+      // live focus height. The dot's pool of attention is then the same size
+      // to the eye in every shot, which is the only definition of it that
+      // means anything.
+      L.redRadius = (redFrac / w) * (L.focusHalfH || 10)
       L.fogNear = fogNear / w
       L.fogFar = fogFar / w
-      L.ink.setRGB(a.ink.r / w, a.ink.g / w, a.ink.b / w)
-      L.haze.setRGB(a.haze.r / w, a.haze.g / w, a.haze.b / w)
+
+      const reg = resolveRegister(night / w, a.ink, a.haze)
+      L.ink.copy(a.ink)
+      L.haze.copy(a.haze)
+      L.soft = reg.soft
+      L.blackout = reg.blackout
       L.reveal = 1
 
       // Movement 1 alone reveals the field in the dot's wake.
@@ -143,8 +155,28 @@ function Director({ progress, scrollTarget, look, reduced, intents, quality }) {
       // to "past the push-in's start" it never released, so the mark stayed at
       // 45% through the finale and the lockup's dot came out smaller than a
       // letter bead.
-      L.dotScale = 1 - 0.55 * movementWeight('intelligence', P)
-      L.dotAura = 0.17 + (L.soft > 0.5 ? 0.16 : 0)
+      // ── The push-in is SCREEN-REFERRED ────────────────────────────────
+      // Every other shot in the film frames a subject and holds it; this one
+      // travels twenty times closer to something that is meant to be
+      // self-similar at every scale. Under plain world-sized geometry that
+      // approach multiplies everything by twenty: the mark became a wall of
+      // red with a specular hit on it, and the field's grain grew past the
+      // point-size clamp so every particle pinned to the same maximum and the
+      // structure dissolved into identical cotton discs.
+      //
+      // So through this movement, and only this one, the pool's grain and the
+      // mark's radius are driven by the camera's own working height. Their
+      // APPARENT size is held while the structure opens up around them, which
+      // is the thing the shot was always trying to say — the intelligence does
+      // not grow, the world it understands does.
+      L.screenLock = movementWeight('intelligence', P)
+      L.dotScale = 1
+      const shrink = Math.min(1, (L.focusHalfH || SCREEN_LOCK_REF_H) / SCREEN_LOCK_REF_H)
+      L.sizeScale = (sizeScale / w) * (1 - L.screenLock * (1 - shrink))
+
+      // Through the dip to black the dot is the only lit thing in the frame,
+      // so it takes the room rather than merely surviving.
+      L.dotAura = 0.17 + reg.soft * 0.16 + L.blackout * 0.55
 
       // The ground the film sits on IS the haze colour, so day→night is one
       // value moving and never a cross-fade between two backgrounds.
@@ -182,9 +214,13 @@ export default function Film() {
     maxPx: 40,
     soft: 0,
     redRadius: 6,
-    fogNear: 46,
-    fogFar: 175,
+    stroke: 1,
+    focusHalfH: 10,
+    fogNear: 3.4,
+    fogFar: 16,
     dotScale: 1,
+    screenLock: 0,
+    blackout: 0,
     dotAura: 0.17,
     ink: new THREE.Color('#0d0d0d'),
     haze: new THREE.Color(PAPER),
@@ -249,18 +285,34 @@ export default function Film() {
     for (const m of MOVEMENTS) weights.current[m.key] = { current: 0 }
   }, [])
 
-  const height = reduced
-    ? '100svh'
-    : `calc(100svh + ${Math.round(RUNTIME_S * PX_PER_SECOND)}px)`
+  const height =
+    reduced || failed
+      ? '100svh'
+      : `calc(100svh + ${Math.round(RUNTIME_S * PX_PER_SECOND)}px)`
 
   return (
     <section
       id="hero"
-      className="hero"
+      className={failed ? 'hero hero--failed' : 'hero'}
       style={{ height }}
       aria-label="ALINED — Design Intelligence Layer"
     >
-      <div className="hero__stage" ref={stageRef}>
+      <div
+        className={q.ink && !reduced ? 'hero__stage has-glyph-cursor' : 'hero__stage'}
+        ref={stageRef}
+      >
+        {failed && (
+          <div className="film__fallback">
+            <p className="film__fallback-mark">alined</p>
+            <p className="film__fallback-line">Design Intelligence Layer</p>
+            <p className="film__fallback-note">
+              The film needs WebGL, which this browser has not made available.
+              ALINED is a sketch-first 3D modelling tool that reads
+              architectural intent and turns drawings into spatial models.
+            </p>
+          </div>
+        )}
+
         {film && intents && (
           <Canvas
             frameloop={visible ? 'always' : 'never'}
@@ -268,6 +320,7 @@ export default function Film() {
             gl={{ antialias: q.antialias, alpha: false, powerPreference: 'high-performance' }}
             camera={{ fov: 35, near: 0.1, far: 3000, position: [0, 0, 26] }}
             onCreated={({ gl }) => gl.setClearColor(PAPER, 1)}
+            onError={() => setFailed(true)}
           >
             <Director
               progress={progress}
