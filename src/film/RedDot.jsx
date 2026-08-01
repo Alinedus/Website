@@ -63,8 +63,9 @@ const coreFrag = /* glsl */ `
     float wet  = pow(1.0 - max(dot(N, vView), 0.0), 2.4);
     float spec = pow(max(dot(reflect(-L, N), vView), 0.0), 42.0);
 
-    vec3 col = uRed * (1.0 - wet * 0.42);
-    col += vec3(1.0) * spec * 0.55;
+    // Gentle: at the lockup's radius a strong rim reads as a donut, not a bead.
+    vec3 col = uRed * (1.0 - wet * 0.20);
+    col += vec3(1.0) * spec * 0.42;
     gl_FragColor = vec4(col, 1.0);
   }
 `
@@ -258,7 +259,7 @@ export default function RedDot({ progress, wordmark, framing, redPos, look, poin
     // gets close enough that it must not become a wall of red.
     const r = wordmark.dotRadius
     const breath = 1 + Math.sin(t * 2.15) * 0.05
-    const scale = r * 1.3 * breath * (look.current.dotScale ?? 1)
+    const scale = r * (wordmark.dotScale ?? 1.3) * breath * (look.current.dotScale ?? 1)
     core.current.scale.setScalar(scale)
 
     if (pointer) {

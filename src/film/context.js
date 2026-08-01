@@ -8,7 +8,7 @@
  * for a film that never loads anything.
  */
 
-import { buildWordmark } from './wordmark'
+import { buildLogotype } from './logotype'
 import { buildArchitecture } from './architecture'
 import { wakeOrder } from './dotPath'
 import { buildAllStates, POOL, rng } from './states'
@@ -20,7 +20,7 @@ import { buildNetworkLines } from './states/network'
 export async function buildFilm() {
   const t0 = performance.now()
 
-  const wordmark = await buildWordmark()
+  const wordmark = buildLogotype({ targetWidth: 40 })
   const architecture = buildArchitecture()
 
   const count = POOL

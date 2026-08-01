@@ -112,9 +112,11 @@ function Director({ progress, scrollTarget, look, reduced, intents }) {
       }
 
       // The dot shrinks as the camera pushes into the core, or it becomes a
-      // wall of red at two units.
-      const [pi] = MOVEMENT_WINDOWS.intelligence
-      L.dotScale = P > pi ? 1 - range(P, pi, MOVEMENT_WINDOWS.intelligence[1]) * 0.55 : 1
+      // wall of red at two units — but ONLY while that movement is lit. Keyed
+      // to "past the push-in's start" it never released, so the mark stayed at
+      // 45% through the finale and the lockup's dot came out smaller than a
+      // letter bead.
+      L.dotScale = 1 - 0.55 * movementWeight('intelligence', P)
       L.dotAura = 0.17 + (L.soft > 0.5 ? 0.16 : 0)
 
       // The ground the film sits on IS the haze colour, so day→night is one
@@ -213,6 +215,22 @@ export default function Film() {
       style={{ height }}
       aria-label="ALINED — Design Intelligence Layer"
     >
+      <a
+        className="skip-link"
+        href="#request-access"
+        onClick={(e) => {
+          // An in-page anchor cannot reach it: the invitation lives inside a
+          // sticky stage, so its document position is the TOP of the section.
+          // Take the scroll to the end of the film and hand it focus there.
+          e.preventDefault()
+          const el = stageRef.current?.parentElement
+          if (el) window.scrollTo({ top: el.offsetTop + el.offsetHeight - window.innerHeight })
+          window.setTimeout(() => ctaRef.current?.querySelector('a')?.focus(), 60)
+        }}
+      >
+        Skip the film — request access
+      </a>
+
       <div className="hero__stage" ref={stageRef}>
         {film && intents && (
           <Canvas
@@ -284,6 +302,7 @@ export default function Film() {
         <div className="film__cta" ref={ctaRef}>
           <a
             className="film__cta-link"
+            id="request-access"
             href="mailto:hello@alined.app?subject=ALINED%20access"
           >
             <svg className="film__cta-ring" viewBox="0 0 240 56" aria-hidden="true">
@@ -352,7 +371,8 @@ function Lockup({ film, progress, taglineRef, ctaRef }) {
 
     if (gridMat.current) gridMat.current.opacity = w * 0.32
     if (tittleMat.current) tittleMat.current.opacity = w
-    if (tittleMesh.current) tittleMesh.current.scale.setScalar(wordmark.dotRadius * w)
+    if (tittleMesh.current)
+      tittleMesh.current.scale.setScalar(wordmark.dotRadius * (wordmark.tittleScale ?? 1) * w)
 
     // The tagline is DOM — letterspaced 11px type has to be crisp and
     // selectable — but it is positioned by projecting the wordmark's own
