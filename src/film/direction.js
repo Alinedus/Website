@@ -205,6 +205,44 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3)
 const frame = (halfW, halfH, fov, aspect, min) =>
   fitDistance(halfW, halfH, fov, aspect, min)
 
+/**
+ * The lockup's framing — ONE function, used by the shot that resolves into it
+ * at the title card and by the shot that pulls back to it at the finale, so
+ * the film's loop closes exactly rather than approximately.
+ *
+ * PORTRAIT IS NOT A CROP OF LANDSCAPE. A phone frame is tall and narrow, and
+ * framing it with the landscape numbers left the mark at 64% of the screen
+ * width with 43% of the screen empty above it: a small object floating in a
+ * column of paper, which is what a desktop composition looks like when it is
+ * merely cropped. Portrait is framed on the word's WIDTH, tightly, because
+ * width is the scarce dimension there; landscape is framed on its HEIGHT,
+ * because height is the scarce dimension there. Same mark, two compositions.
+ */
+const lockupDistance = (wordHalfW, wordHalfH, fov, aspect) => {
+  const portrait = aspect < 1
+  return frame(
+    wordHalfW * (portrait ? 1.3 : 1.62),
+    wordHalfH * (portrait ? 3.2 : 4.0),
+    fov,
+    aspect,
+    portrait ? 20 : 26
+  )
+}
+
+/**
+ * How far BELOW the mark the lockup shot aims.
+ *
+ * Aiming at the mark's own centre puts it dead centre in the frame, and the
+ * finale is not a mark alone — it is a mark, a line of type and an invitation,
+ * and that GROUP is what has to sit well on the page. Centring the first
+ * element leaves the group bottom-heavy. Sixteen percent of the frame's half
+ * height lifts the mark into the upper-middle and gives the invitation the
+ * lower third, which is where an invitation belongs.
+ *
+ * Expressed against the working distance so it is the same on every viewport.
+ */
+const lockupLookY = (d, fov) => -0.16 * d * Math.tan((fov * Math.PI) / 360)
+
 export function buildIntents(framing) {
   const {
     wordHalfW,
@@ -240,11 +278,12 @@ export function buildIntents(framing) {
       const travel = ease(Math.min(1, t / 0.72))
       path.getPointAt(Math.min(0.999, travel), tmpA)
       lookPath.getPointAt(Math.min(0.999, travel), tmpB)
-      const d = frame(wordHalfW * 1.62, wordHalfH * 5.2, 35, aspect, 26)
+      const d = lockupDistance(wordHalfW, wordHalfH, 35, aspect)
+      const ly = lockupLookY(d, 35)
       const resolve = 1 - Math.pow(1 - Math.min(1, Math.max(0, (t - 0.66) / 0.34)), 4)
       return {
-        pos: tmpA.clone().lerp(V(0, 0, d), resolve),
-        look: tmpB.clone().lerp(V(0, 0, 0), resolve),
+        pos: tmpA.clone().lerp(V(0, ly, d), resolve),
+        look: tmpB.clone().lerp(V(0, ly, 0), resolve),
         fov: 35,
       }
     },
@@ -370,10 +409,11 @@ export function buildIntents(framing) {
     // second is the frame coming to rest.
     resolution(t, { aspect }) {
       const k = 1 - Math.pow(1 - t, 2.4)
-      const d = frame(wordHalfW * 1.62, wordHalfH * 5.2, 35, aspect, 26)
+      const d = lockupDistance(wordHalfW, wordHalfH, 35, aspect)
+      const ly = lockupLookY(d, 35) * k
       return {
-        pos: V(0, 0, lerp(3.2, d, k)),
-        look: V(0, 0, 0),
+        pos: V(0, ly, lerp(3.2, d, k)),
+        look: V(0, ly, 0),
         fov: lerp(58, 35, easeOut(Math.min(1, t / 0.7))),
       }
     },

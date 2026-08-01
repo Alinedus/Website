@@ -470,17 +470,30 @@ function Lockup({ film, progress, taglineRef, ctaRef, cueRef }) {
     // The tagline is DOM — letterspaced 11px type has to be crisp and
     // selectable — but it is positioned by projecting the wordmark's own
     // anchor, so it is welded to the geometry rather than guessed at in CSS.
+    //
+    // How TALL the mark is on this screen is measured the same way, by
+    // projecting its own top and bottom, because everything under it is spaced
+    // against that. A logo's relationship to the line beneath it is
+    // typographic — a proportion of its own height — not a percentage of a
+    // viewport it knows nothing about.
+    anchor.current.set(0, wordmark.bottomY, 0)
+    anchor.current.project(camera)
+    const baseY = (-anchor.current.y * 0.5 + 0.5) * size.height
+    anchor.current.set(0, wordmark.bottomY + wordmark.height, 0)
+    anchor.current.project(camera)
+    const topY = (-anchor.current.y * 0.5 + 0.5) * size.height
+    const markPx = Math.abs(baseY - topY)
+
     const el = taglineRef.current
+    let tagBottom = baseY
     if (el) {
-      anchor.current.set(0, wordmark.bottomY - wordmark.dotRadius * 4.6, 0)
-      anchor.current.project(camera)
-      const x = (anchor.current.x * 0.5 + 0.5) * size.width
-      const y = (-anchor.current.y * 0.5 + 0.5) * size.height
-      el.style.transform = `translate(-50%, 0) translate3d(${x - size.width / 2}px, ${
+      const y = baseY + Math.min(64, Math.max(18, markPx * 0.26))
+      el.style.transform = `translate(-50%, 0) translate3d(0px, ${
         y - size.height / 2
       }px, 0)`
       el.style.opacity = w
       el.style.letterSpacing = `${0.62 - (1 - w) * 0.22}em`
+      tagBottom = y + el.offsetHeight
     }
 
     // The invitation arrives last, and only once. It is also the only large red
@@ -491,6 +504,18 @@ function Lockup({ film, progress, taglineRef, ctaRef, cueRef }) {
       const k = Math.max(0, (finale - 0.45) / 0.55)
       cta.style.setProperty('--draw', k.toFixed(3))
       cta.style.pointerEvents = k > 0.6 ? 'auto' : 'none'
+
+      // The invitation is spaced off the TAGLINE, by a proportion of the
+      // mark's own measured height — so the lockup is ONE group at every
+      // viewport instead of a mark near the top of the screen and a button
+      // pinned to the bottom of it, which on a phone left a third of the page
+      // of dead paper between them. Floored at 76px so the touch target never
+      // crowds the type, capped so a large desktop mark cannot push it off the
+      // page, and clamped into the frame so a camera mid-pull-back can never
+      // park it out of sight.
+      const drop = Math.min(210, Math.max(76, markPx * 0.52))
+      const cy = Math.min(size.height - 104, Math.max(size.height * 0.5, tagBottom + drop))
+      cta.style.setProperty('--cy', `${Math.round(cy)}px`)
     }
 
     // The scroll cue has done its job the moment the film starts moving.

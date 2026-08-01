@@ -195,11 +195,20 @@ canvas {
   --over: 0;
   position: absolute;
   left: 50%;
-  bottom: 12%;
+  /* WELDED TO THE MARK, not to the viewport.
+     The tagline is positioned by projecting the wordmark's own anchor, but the
+     invitation was pinned to the bottom of the screen — so the two halves of
+     one lockup drifted apart by whatever the viewport happened to be. On a
+     phone that left a third of the screen of dead paper between them and the
+     group stopped reading as a group. `--cy` is written per frame from the
+     same projection the tagline uses, so the invitation sits a fixed distance
+     under the name on every device. */
+  top: 0;
   z-index: 4;
   /* The magnet moves the BUTTON, so the transform lives here and the browser
      only ever composites it — no layout, no paint. */
-  transform: translateX(-50%) translate3d(var(--mx), var(--my), 0) scale(var(--press));
+  transform: translateX(-50%)
+    translate3d(var(--mx), calc(var(--cy, 78vh) + var(--my)), 0) scale(var(--press));
   will-change: transform;
 }
 
@@ -256,7 +265,7 @@ canvas {
 
 @media (prefers-reduced-motion: reduce) {
   .film__cta {
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(var(--cy, 78vh));
   }
   .film__cta-label {
     letter-spacing: 0.26em;
