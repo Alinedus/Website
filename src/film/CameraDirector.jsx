@@ -33,7 +33,7 @@ export default function CameraDirector({ progress, intents, framing, look, point
   const fov = useRef(35)
   const roll = useRef(0)
 
-  const acc = useRef({ pos: V(), look: V(), fov: 0, roll: 0, w: 0 })
+  const acc = useRef({ dir: V(), look: V(), radius: 0, fov: 0, roll: 0, w: 0 })
   const tmp = useRef({ pos: V(), look: V() })
   const basis = useRef({ dir: V(), right: V(), up: V(), worldUp: new THREE.Vector3(0, 1, 0) })
 
@@ -41,10 +41,24 @@ export default function CameraDirector({ progress, intents, framing, look, point
     const dt = Math.min(delta, 1 / 30)
     const P = progress.current
 
-    // ── Blend every live intent ───────────────────────────────────────────
+    // ── Blend every live intent, ON AN ARC ────────────────────────────────
+    //
+    // A camera position cannot be averaged. Two intents looking at the same
+    // subject from different angles sit on a sphere around it, and the average
+    // of two points on a sphere is INSIDE it: the blend cuts the chord and the
+    // camera dives at the subject through a pose nobody authored. Measured:
+    // 3% closer at a 30-degree hand-off, 13% at sixty, 29% at ninety. Every
+    // hand-off in the film has one of these buried in it, and the crane into
+    // the city is close to ninety degrees.
+    //
+    // So the DIRECTION from the look-target and the RADIUS along it are
+    // blended separately and recombined. The camera then swings around its
+    // subject on an arc at a controlled distance, which is what a crane or a
+    // dolly physically does and what the shot was authored to be.
     const a = acc.current
-    a.pos.set(0, 0, 0)
+    a.dir.set(0, 0, 0)
     a.look.set(0, 0, 0)
+    a.radius = 0
     a.fov = 0
     a.roll = 0
     a.w = 0
@@ -63,7 +77,10 @@ export default function CameraDirector({ progress, intents, framing, look, point
       const [s, e] = MOVEMENT_WINDOWS[m.key]
       const local = Math.min(1, Math.max(0, (P - s) / (e - s || 1)))
       const out = intent(local, { P, aspect: size.width / Math.max(1, size.height), framing })
-      a.pos.addScaledVector(out.pos, w)
+      const off = tmp.current.pos.copy(out.pos).sub(out.look)
+      const r = off.length()
+      if (r > 1e-5) a.dir.addScaledVector(off.divideScalar(r), w)
+      a.radius += r * w
       a.look.addScaledVector(out.look, w)
       a.fov += (out.fov ?? 35) * w
       a.roll += (out.roll ?? 0) * w
@@ -71,8 +88,20 @@ export default function CameraDirector({ progress, intents, framing, look, point
     }
 
     if (a.w > 0.0001) {
-      tmp.current.pos.copy(a.pos).divideScalar(a.w)
       tmp.current.look.copy(a.look).divideScalar(a.w)
+      // Two intents facing exactly opposite would cancel; no hand-off in this
+      // film does, but a normalize on a zero vector is NaN and NaN in a camera
+      // matrix ends the frame, so it is guarded rather than assumed.
+      const dl = a.dir.length()
+      if (dl > 1e-4) {
+        tmp.current.pos
+          .copy(a.dir)
+          .divideScalar(dl)
+          .multiplyScalar(a.radius / a.w)
+          .add(tmp.current.look)
+      } else {
+        tmp.current.pos.copy(pos.current)
+      }
       const targetFov = a.fov / a.w
       const targetRoll = a.roll / a.w
 

@@ -25,16 +25,40 @@
  * begins moving to the next; `morph` is how long that move takes. Both in
  * seconds of unhurried scrolling — see SECONDS_TO_VH in Film.jsx.
  */
+/**
+ * ── THE RHYTHM ────────────────────────────────────────────────────────────
+ *
+ * These numbers ARE the edit, and the first version of them was a metronome:
+ * six of the nine holds were 3.5 seconds and four of the morphs were exactly
+ * 5.0. Nine near-equal beats is not a film, it is a slideshow with dissolves —
+ * and 56% of the runtime was spent IN those dissolves, so more than half the
+ * piece was the mush between compositions rather than the compositions.
+ *
+ * A film has a shape. This one now accelerates: every morph after the title
+ * card is shorter than the one before it (4.2 → 3.7 → 3.4 → 3.1 → 2.9 → 2.6 →
+ * 2.3), so the idea visibly compounds — plan, building, city, graph arriving
+ * faster and faster — and then the last transition DECELERATES into the
+ * climax at 3.8. Holds are all distinct and are spent where the frames earn
+ * them: the two strongest compositions in the film, the drafting table and the
+ * aerial plan, get the longest ones in the body, and the resolution gets 6.5
+ * seconds because it is the only frame anybody is asked to act on.
+ *
+ * The opening hold drops from 2.0 to 1.2. Nobody scrolls to look at an empty
+ * page for two seconds; they scroll to find out whether anything happens.
+ *
+ * Morph share is now 46%, from 56%, and the film is 57 seconds instead of 71 —
+ * which also takes four thousand pixels off the scroll contract.
+ */
 export const STATES = [
-  { key: 'scatter', hold: 2.0, morph: 5.5 },
-  { key: 'architecture', hold: 3.5, morph: 5.5 },
-  { key: 'wordmark', hold: 3.0, morph: 4.5 },
-  { key: 'blueprint', hold: 3.5, morph: 5.0 },
-  { key: 'building', hold: 3.5, morph: 5.0 },
-  { key: 'city', hold: 3.5, morph: 5.0 },
-  { key: 'network', hold: 3.5, morph: 5.0 },
-  { key: 'intelligence', hold: 3.5, morph: 4.5 },
-  { key: 'mark', hold: 5.0, morph: 0 },
+  { key: 'scatter', hold: 1.2, morph: 4.2 },
+  { key: 'architecture', hold: 2.6, morph: 3.7 },
+  { key: 'wordmark', hold: 4.2, morph: 3.4 },
+  { key: 'blueprint', hold: 4.0, morph: 3.1 },
+  { key: 'building', hold: 2.8, morph: 2.9 },
+  { key: 'city', hold: 3.8, morph: 2.6 },
+  { key: 'network', hold: 2.4, morph: 2.3 },
+  { key: 'intelligence', hold: 3.2, morph: 3.8 },
+  { key: 'mark', hold: 6.5, morph: 0 },
 ]
 
 export const STATE_INDEX = Object.fromEntries(STATES.map((s, i) => [s.key, i]))

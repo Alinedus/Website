@@ -450,10 +450,19 @@ function Lockup({ film, progress, taglineRef, ctaRef, cueRef }) {
   useFrame(() => {
     const P = progress.current
     // Legible at the title card and again at the finale, nowhere between.
-    const w = Math.max(stateWeight('wordmark', P), stateWeight('mark', P))
+    const card = stateWeight('wordmark', P)
     const finale = stateWeight('mark', P)
+    const w = Math.max(card, finale)
 
-    if (gridMat.current) gridMat.current.opacity = w * 0.32
+    // ── The title card and the finale are NOT the same image ──────────────
+    // They were: same state, same framing, same furniture, so the film ended
+    // on a frame it had already shown at a quarter of the way through and had
+    // no rising shape at all. The difference is the drafting grid. At the
+    // TITLE CARD the name is a thing being set out — construction lines, a
+    // mark still hunting for its place. At the FINALE the grid is struck and
+    // the name simply IS, with the dot landed on it and an invitation under
+    // it. Same subject, one act apart: drawn, then built.
+    if (gridMat.current) gridMat.current.opacity = card * 0.32
     if (tittleMat.current) tittleMat.current.opacity = w
     if (tittleMesh.current)
       tittleMesh.current.scale.setScalar(wordmark.dotRadius * (wordmark.tittleScale ?? 1) * w)

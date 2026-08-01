@@ -79,25 +79,39 @@ export async function buildFilm({ count: poolCount } = {}) {
   )
 
   // Framing extents the camera director needs. Measured from the geometry
-  // rather than hard-coded, so retuning a state cannot silently crop the shot.
-  const cityIdx = 5
-  let cityHalf = 60
-  {
-    const pos = states[cityIdx]?.pos
-    if (pos) {
-      let m = 0
-      for (let i = 0; i < count; i++) {
-        if (pos[i * 4 + 3] <= 0) continue
-        m = Math.max(m, Math.abs(pos[i * 4]), Math.abs(pos[i * 4 + 2]))
-      }
-      if (m > 1) cityHalf = m
+  // rather than hard-coded, so retuning a state cannot silently crop the shot
+  // — which is exactly what had happened: the crane's final distance was the
+  // one literal in the whole camera table, and MEASURED against the building
+  // it was supposed to frame it left the subject at 89% of the frame width
+  // with its base three units below the bottom edge. That literal IS the
+  // illegible black smear the jury rejected.
+  const extentOf = (idx) => {
+    const pos = states[idx]?.pos
+    if (!pos) return null
+    let x = 0
+    let y = 0
+    let z = 0
+    let top = -Infinity
+    for (let i = 0; i < count; i++) {
+      if (pos[i * 4 + 3] <= 0) continue
+      x = Math.max(x, Math.abs(pos[i * 4]))
+      y = Math.max(y, Math.abs(pos[i * 4 + 1]))
+      z = Math.max(z, Math.abs(pos[i * 4 + 2]))
+      top = Math.max(top, pos[i * 4 + 1])
     }
+    return x > 0.01 ? { x, y, z, top } : null
   }
+
+  const city = extentOf(5)
+  const building = extentOf(4)
 
   const framing = {
     wordHalfW: wordmark.width / 2,
     wordHalfH: wordmark.height / 2,
-    cityHalf,
+    cityHalf: city ? Math.max(city.x, city.z) : 60,
+    buildingHalfW: building ? Math.max(building.x, building.z) : 21,
+    buildingHalfH: building ? building.y : 12,
+    buildingTop: building ? building.top : 12,
   }
 
   return {

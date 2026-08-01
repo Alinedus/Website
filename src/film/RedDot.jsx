@@ -262,9 +262,19 @@ export default function RedDot({ progress, wordmark, framing, redPos, look, poin
     // place above the `d`, and a spring soft enough to feel alive on the way
     // is not stiff enough to have finished when the frame is held — the mark
     // has to be EXACTLY on the logotype at rest, or the lockup is wrong.
+    //
+    // In free flight it is now genuinely UNDER-damped. At the shipped damping
+    // the ratio was 0.81, which overshoots by under two percent — arithmetic
+    // nobody can see, and the only authored spring in seventy seconds. A
+    // character that never overshoots is not alive, it is interpolated. At
+    // 0.55 it arrives, passes its mark, and comes back: about a tenth of the
+    // travel, which is what reads as something with its own momentum deciding
+    // where to stop. The landing ramp is untouched and still drives the ratio
+    // past 1, so the finished lockup is exact — bounce on the way, no bounce
+    // at rest.
     const landing = range(P, 0.9, 0.99)
     const stiff = 34 + landing * 260
-    const damping = 9.5 + landing * 26
+    const damping = 6.4 + landing * 30
     s.vel.x += ((s.target.x - s.pos.x) * stiff - s.vel.x * damping) * dt
     s.vel.y += ((s.target.y - s.pos.y) * stiff - s.vel.y * damping) * dt
     s.vel.z += ((s.target.z - s.pos.z) * stiff - s.vel.z * damping) * dt

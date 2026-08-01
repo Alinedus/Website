@@ -421,7 +421,11 @@ export default function PointPool({ states, count, order, look, progress, redPos
       const inst = Math.abs(morph - morphRef.current.last) / dt
       morphRef.current.last = morph
       const m = morphRef.current
-      m.rate = inst > m.rate ? inst : m.rate + (inst - m.rate) * (1 - Math.exp(-4.5 * dt))
+      // Attack instantly, release over about a third of a second. MEASURED at
+      // the slower release the field was still visibly drawn three to four
+      // seconds after the hand stopped, which reads as lag rather than as ink
+      // settling — the skill's own rule, exit faster than enter.
+      m.rate = inst > m.rate ? inst : m.rate + (inst - m.rate) * (1 - Math.exp(-9 * dt))
       u.uMorphRate.value = m.rate
     }
     u.uRedPos.value.copy(redPos.current)

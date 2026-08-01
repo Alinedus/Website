@@ -100,8 +100,8 @@ export const LOOKS = {
     stroke: 1.0,
     motion: MOTION.DRIFT,
     motionAmp: 1.0,
-    sizeScale: 1,
-    maxPx: 40,
+    sizeScale: 0.8,
+    maxPx: 22,
     redFrac: 0.62,
     // The corridor's look-target is only a few units ahead of the lens while
     // the field runs a hundred units deep, so a ratio tuned for a framed
@@ -115,8 +115,8 @@ export const LOOKS = {
     stroke: 0.55,
     motion: MOTION.DRAFT,
     motionAmp: 0.35,
-    sizeScale: 1,
-    maxPx: 26,
+    sizeScale: 0.72,
+    maxPx: 18,
     redFrac: 0.15,
     fogNear: 1.7,
     fogFar: 6.5,
@@ -126,8 +126,8 @@ export const LOOKS = {
     stroke: 1.0,
     motion: MOTION.SETTLE,
     motionAmp: 0.5,
-    sizeScale: 1,
-    maxPx: 24,
+    sizeScale: 0.34,
+    maxPx: 9,
     redFrac: 0.26,
     fogNear: 1.7,
     fogFar: 6.5,
@@ -138,7 +138,7 @@ export const LOOKS = {
     motion: MOTION.PARALLAX,
     motionAmp: 0,
     sizeScale: 0.85,
-    maxPx: 14,
+    maxPx: 11,
     redFrac: 0.11,
     // Aerial perspective — this movement's exclusive palette event. Tight
     // ratios so distant blocks genuinely dissolve into the haze.
@@ -151,7 +151,7 @@ export const LOOKS = {
     motion: MOTION.PULSE,
     motionAmp: 0.5,
     sizeScale: 1.15,
-    maxPx: 22,
+    maxPx: 16,
     redFrac: 0.4,
     fogNear: 1.5,
     fogFar: 5.0,
@@ -161,8 +161,8 @@ export const LOOKS = {
     stroke: 1.0,
     motion: MOTION.FLOW,
     motionAmp: 0.35,
-    sizeScale: 1.3,
-    maxPx: 30,
+    sizeScale: 0.75,
+    maxPx: 18,
     redFrac: 0.34,
     fogNear: 1.2,
     fogFar: 4.0,
@@ -206,7 +206,14 @@ const frame = (halfW, halfH, fov, aspect, min) =>
   fitDistance(halfW, halfH, fov, aspect, min)
 
 export function buildIntents(framing) {
-  const { wordHalfW, wordHalfH, cityHalf } = framing
+  const {
+    wordHalfW,
+    wordHalfH,
+    cityHalf,
+    buildingHalfW = 21,
+    buildingHalfH = 12,
+    buildingTop = 12,
+  } = framing
 
   // ── 1 · corridor dolly ──────────────────────────────────────────────────
   // Ported from movement 1: a spline through a drafting corridor, resolving to
@@ -268,14 +275,32 @@ export function buildIntents(framing) {
       // rather than 0 — at true zero the footprint projects to a line and the
       // framing has no solution.
       const pitch = lerp(Math.PI / 2, 0.24, k)
-      const dist = lerp(far, 46, k)
+      // COMPUTED, like every other shot. This was the one hard-coded distance
+      // in the table, and the subject grew past it: measured, the building
+      // needs 51 units and the literal said 46, so it filled 89% of the frame
+      // width with its base cropped off the bottom edge. A three-quarter view
+      // is also seen across its diagonal, which is what the extra breadth pays
+      // for, and the vertical extent is measured about the RAISED look-point
+      // rather than about the origin — the crane tilts up as it rises, so the
+      // half-height the lens has to cover is the distance from that point down
+      // to the ground, not the model's own half-height.
+      const eyeH = lerp(0, 5.5, k)
+      const half = Math.hypot(buildingHalfW, buildingHalfW * 0.62)
+      const near = frame(
+        half * 1.24,
+        Math.max(buildingTop - eyeH, eyeH + buildingHalfH) * 1.22,
+        fov,
+        aspect,
+        24
+      )
+      const dist = lerp(far, near, k)
       return {
         pos: V(
           Math.sin(k * 0.6) * 6,
           Math.sin(pitch) * dist,
           Math.cos(pitch) * dist
         ),
-        look: V(0, lerp(0, 5.5, k), 0),
+        look: V(0, eyeH, 0),
         fov,
       }
     },
