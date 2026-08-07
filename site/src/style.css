@@ -1,0 +1,1095 @@
+/* ------------------------------------------------------------------ fonts */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+/* ----------------------------------------------------------------- tokens */
+:root {
+  /* the four locked brand values */
+  --charcoal: #1a1a1a;
+  --cloud: #efefef;
+  --white: #ffffff;
+  --scarlet: #ff391f;
+
+  /* warm-biased neutrals — never a cold or pure grey */
+  --n-90: #232020;
+  --n-70: #332e2c;
+  --n-50: #6b6664;
+  --n-30: #a8a29f;
+  --n-10: #dedad8;
+
+  /* driven from JS as the ground inverts at the cut */
+  --ink: var(--cloud);
+  --ink-dim: var(--n-50);
+
+  /* 32-unit grid, halved for screen */
+  --u: 16px;
+
+  --sans: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-cut: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--charcoal);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the only thing that actually scrolls */
+#space {
+  position: relative;
+  height: calc(var(--viewports, 13) * 100vh);
+  pointer-events: none;
+}
+
+#gl {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 0;
+}
+
+/* -------------------------------------------------------------- the stage */
+/* Scenes are fixed and driven by progress rather than pinned by ScrollTrigger. Pin-spacers fight
+   a continuous 3D timeline and make every range depend on the ones before it; this way the map in
+   scenes.ts is the only thing that decides when anything happens. */
+#stage {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Copy lives bottom-left, the geometry stays centred. Both centred means the headline sits on top
+   of the circuit and neither reads. */
+.scene {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: end;
+  justify-items: start;
+  opacity: 0;
+  visibility: hidden;
+  padding: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 5) calc(var(--u) * 5);
+}
+
+.scene-inner {
+  max-width: 44ch;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+  text-align: left;
+  will-change: transform, opacity;
+}
+
+/* .scene-id is gone with the eyebrows. Every copy block now opens on its headline — no scene
+   number, no act label, no beat key. It was the last of the production chrome. */
+
+.scene-label {
+  font-size: clamp(2.4rem, 6vw, 5.2rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.scene-note {
+  font-size: clamp(0.95rem, 1.3vw, 1.05rem);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ink-dim);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.scene-range {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.7;
+}
+
+/* the hinge gets no copy — the geometry is the whole event */
+.scene[data-act='0'] .scene-label,
+.scene[data-act='0'] .scene-note {
+  display: none;
+}
+
+/* ------------------------------------------------------------- station copy */
+.station-line {
+  font-size: clamp(1.6rem, 3.2vw, 2.7rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* the client's nine words — the only scarlet type in Act I, and the largest */
+.station-line.client {
+  color: var(--scarlet);
+  font-size: clamp(2rem, 4.6vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.station-under {
+  font-size: 1rem;
+  color: var(--ink-dim);
+  margin: 0;
+}
+
+.station-cost {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 0;
+  display: flex;
+  gap: 14px;
+}
+
+.station-cost span {
+  color: var(--ink);
+}
+
+.station-cost span.loss {
+  color: var(--scarlet);
+}
+
+.station-cost i {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- counters */
+.counters {
+  margin: calc(var(--u) * 0.5) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px calc(var(--u) * 2);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.counters div {
+  display: flex;
+  gap: 10px;
+}
+
+.counters dt {
+  color: var(--ink-dim);
+}
+
+.counters dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+/* the only number that never moves */
+.counters .stuck dd {
+  color: var(--scarlet);
+}
+
+/* ------------------------------------------------------------ act II panels */
+/* The proof frame and the four "what collapses" cards were cut, and .scene-inner.wide went with
+   them — the two-column card grid was the only block on the site that needed a wider measure. */
+
+/* --------------------------------------------------------------- sign-off */
+/* the only centred block on the site — the logo is above it and owns the frame */
+.signoff {
+  align-content: end;
+  justify-items: center;
+  padding-bottom: calc(var(--u) * 4);
+}
+
+.signoff-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* the tagline is display type now and needs air under it, so the gap is set per-item below */
+  gap: calc(var(--u) * 1.25);
+  text-align: center;
+}
+
+.signoff-inner .cta {
+  margin-top: calc(var(--u) * 0.75);
+}
+
+/* The brand line, and the one sentence the whole film is a demonstration of. It was set at
+   1.15rem, directly above a large scarlet button, which is a reliable way to make a sentence
+   disappear — the eye goes to the button and never comes back up. It is display type now: the
+   second-largest thing on the page after the mark itself.
+
+   No colour on it. The two nouns carry weight instead, because the only scarlet that belongs in
+   this frame is the CTA and the mark's own dot, and a third would just split the eye three ways. */
+.tagline {
+  margin: 0;
+  max-width: 20ch;
+  font-size: clamp(1.7rem, 3.6vw, 3rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+/* intent and execution — the two poles, and the only two words that matter in it */
+.tagline b {
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.cta {
+  pointer-events: auto;
+  background: var(--scarlet);
+  color: var(--white);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  padding: 13px calc(var(--u) * 1.75);
+  border-radius: 2px;
+  transition: transform 0.2s var(--ease-snap);
+}
+
+.cta:hover,
+.cta:focus-visible {
+  transform: translateY(-2px);
+}
+
+/* ------------------------------------------------------------ the message box */
+/*
+ * The second route out of the sign-off. It replaces the demo button rather than sitting beside it,
+ * so the last frame never carries two calls to action competing for the same eye.
+ *
+ * Everything here has to opt back into pointer events: .scene is inert by default so the film
+ * underneath stays scrollable through it, and a form you cannot click is worse than no form.
+ */
+.ask {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 0.85);
+}
+
+/* A class that sets `display` beats the user agent's `[hidden] { display: none }`, so both halves
+   rendered at once and the block grew tall enough to collide with the logo above it. Every element
+   that toggles on `hidden` and sets its own display has to say this. */
+.ask[hidden],
+.note[hidden] {
+  display: none;
+}
+
+.ask-open {
+  pointer-events: auto;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  margin: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border-bottom: 1px solid currentColor;
+  transition: color 0.2s linear;
+}
+
+.ask-open:hover,
+.ask-open:focus-visible {
+  color: var(--ink);
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(38ch, 100%);
+  text-align: left;
+}
+
+.note textarea,
+.note input[type='email'] {
+  pointer-events: auto;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--n-30);
+  border-radius: 2px;
+  padding: 10px 12px;
+  width: 100%;
+  resize: vertical;
+  transition: border-color 0.2s linear;
+}
+
+.note textarea::placeholder,
+.note input[type='email']::placeholder {
+  color: var(--ink-dim);
+}
+
+.note textarea:focus,
+.note input[type='email']:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+.note-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.note-row input[type='email'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.note-row .cta {
+  flex: 0 0 auto;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.note-row .cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.note-status {
+  margin: 0;
+  min-height: 1em;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.note-status.ok {
+  color: var(--ink);
+}
+
+.note-status.bad {
+  color: var(--scarlet);
+}
+
+/* Labels and the honeypot: in the accessibility tree, out of the picture. Not display:none — a
+   hidden label is a label no screen reader reads. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- colophon */
+/*
+ * Eight destinations under a logo reveal, without the frame turning into a link farm.
+ *
+ * Three things keep it subordinate to the mark. It is set at 10px mono — smaller than the two
+ * addresses it replaced, not larger, even though it now carries four times as much. The labels are
+ * the only new typographic device and they are the dimmest thing on the page, so the eye reads
+ * "call" and stops, rather than scanning eight strings for the one it wants. And no group runs past
+ * two lines, so the whole block is two lines tall however it wraps.
+ *
+ * No icons. This site has spent thirteen viewports being made of dots, mono type and one scarlet,
+ * and an Instagram glyph would be the first thing in it borrowed from somebody else's brand.
+ *
+ * No scarlet either — the CTA and the mark's own dot are the only two in this frame, and a third
+ * would split the eye three ways.
+ */
+.colophon {
+  margin: calc(var(--u) * 0.5) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--u) * 1.15) calc(var(--u) * 2.4);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-align: left;
+}
+
+.colophon > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.colophon dt {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  opacity: 0.62;
+  margin-bottom: 1px;
+}
+
+.colophon dd {
+  margin: 0;
+}
+
+.colophon a {
+  pointer-events: auto;
+  color: var(--ink-dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.18s linear, border-color 0.18s linear;
+}
+
+.colophon a:hover,
+.colophon a:focus-visible {
+  color: var(--ink);
+  border-bottom-color: currentColor;
+}
+
+.foot {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------- logo */
+#logo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* the wordmark occupies only the middle ~47% of its 720 viewBox, so the box has to run wide for
+   the logo itself to have any presence */
+#logo svg {
+  width: min(74vw, 122vh);
+  height: auto;
+  overflow: visible;
+  /*
+   * The wordmark sits at the vertical centre of its own 720 viewBox, so the box has to be lifted
+   * bodily to get the logo out of the sign-off block's way.
+   *
+   * That lift was a flat -21vh, which is correct at 16:9 and wrong everywhere else. The block's
+   * height is set by its type and does not shrink with the window, so on a short one it eats a
+   * larger share of the height and a lift measured in vh stops being enough — at 1280x720 the
+   * wordmark cleared the tagline by three pixels, and by none at all once the message box was open.
+   *
+   * ui.ts measures the drawn glyphs against the block and writes --logo-lift, so the mark clears it
+   * at any aspect ratio. The vh value stays as the fallback for the first frame.
+   *
+   * It moves by transform, not by margin. The mark is a grid item under `place-items: center`, and
+   * a negative margin on a centred item is partly absorbed by the centring as it redistributes the
+   * free space — so corrections landed short, which is why the first two attempts at this measured
+   * correctly and still overlapped. A transform is not layout and moves it exactly.
+   */
+  transform: translateY(var(--logo-lift, -21vh));
+  transition: transform 0.3s var(--ease-snap);
+}
+
+/* the logo's own elements, revealed one at a time */
+#logo .logo-el {
+  transform: scale(0);
+  transform-origin: center;
+  transform-box: fill-box;
+  transition: transform 0.42s var(--ease-snap);
+}
+
+#logo .logo-el.on {
+  transform: scale(1);
+}
+
+/* Measured with the reveal suspended. Every glyph sits at scale(0) until the sequence brings it in,
+   so a rect taken before that says the wordmark is nowhere at all — which is exactly why the first
+   attempt at fitting it silently did nothing. Layout only: ui.ts adds and removes this inside a
+   single frame, so nothing is ever painted in this state. */
+#logo.measuring .logo-el {
+  transform: scale(1);
+  transition: none;
+}
+
+/* The d's dot is not revealed by the sequence — the film flies his head into this exact spot and
+   the two swap in one frame, so it has to arrive at full size with no transition of its own. */
+#logo .logo-land {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+#logo .logo-land.on {
+  opacity: 1;
+}
+
+#logo .logo-el > * {
+  fill: var(--ink);
+}
+
+#logo .cls-2 {
+  fill: var(--scarlet);
+}
+
+/* The drafting grid the mark is set out on. Its own stroke-width is 0.08 user units — invisible at
+   any size we would render this — so it is overridden and pinned to a hairline instead. */
+#logo .logo-grid {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  transition: opacity 0.5s linear;
+}
+
+#logo .logo-grid.on {
+  opacity: 0.16;
+}
+
+/* -------------------------------------------------- station labels on the ring */
+#st-labels {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Hidden until lap one positions them. Without this they stack unpositioned at the origin at
+   full opacity — a pile of station names in the top-left corner from page load until the reader
+   first reaches the ring. */
+#st-labels span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+  /* Positioned by stage.ts, then centred on that point in ui.ts against its own measured width —
+     no margin nudge here, or the centring would be applied twice. */
+  transform-origin: center;
+  transition: opacity 0.28s linear;
+}
+
+/* the active station reads through brightness, not colour — scarlet is his head alone */
+#st-labels span.on {
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------- the spine */
+/* Loop to line, as a scroll indicator: a coiled arc that straightens as you pass the cut. */
+#spine {
+  position: fixed;
+  left: calc(var(--u) * 1.5);
+  top: 0;
+  height: 100vh;
+  width: 34px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+#spine svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+#spine .track {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.22;
+}
+
+#spine .fill {
+  fill: none;
+  stroke: var(--scarlet);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+#spine .tick {
+  fill: currentColor;
+  opacity: 0.35;
+}
+
+#spine .tick.on {
+  fill: var(--scarlet);
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------- mark */
+/* Top-left, clear of the spine. Its scarlet dot is driven from mark.ts — it does whatever his
+   head is doing, so the letter only becomes whole once the loop is cut. */
+#mark {
+  position: fixed;
+  top: calc(var(--u) * 1.4);
+  left: calc(var(--u) * 3.6);
+  z-index: 4;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 6px;
+  margin: 0;
+  cursor: pointer;
+  line-height: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+#mark svg {
+  width: 92px;
+  height: auto;
+  overflow: visible;
+  display: block;
+}
+
+#mark .mark-el > * {
+  fill: var(--ink);
+}
+
+#mark .mark-dot > *,
+#mark .mark-tittle > * {
+  fill: var(--scarlet);
+}
+
+#mark .mark-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* the idle breath — a keyframe so it runs on the compositor rather than costing a transform
+   write every frame, which would defeat the change-guard on the story lift above it */
+#mark .mark-breath {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mark-breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes mark-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mark .mark-breath {
+    animation: none;
+  }
+}
+
+/* the letter ripples left to right under the cursor — the per-element delay is set in mark.ts */
+#mark .mark-el {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.3s var(--ease-snap);
+}
+
+#mark:hover .mark-el,
+#mark:focus-visible .mark-el {
+  transform: scale(1.42);
+}
+
+#mark:focus-visible {
+  outline: 1px solid var(--scarlet);
+  outline-offset: 3px;
+}
+
+/* --------------------------------------------------------------- dev hud */
+#hud {
+  position: fixed;
+  top: calc(var(--u) * 6.5);
+  left: calc(var(--u) * 3.6);
+  z-index: 4;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#hud[hidden] {
+  display: none;
+}
+
+#hud .row {
+  display: flex;
+  gap: 10px;
+}
+
+#hud .k {
+  width: 74px;
+  opacity: 0.6;
+}
+
+#hud .v {
+  color: var(--scarlet);
+}
+
+/* ------------------------------------------------------------ preloader */
+/* Charcoal, because the film opens charcoal — a white loading screen would mean a flash the
+   moment it handed over, and the hand-off is the entire point of it existing. */
+#preload {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--charcoal);
+  display: grid;
+  place-items: center;
+  transition: opacity 0.32s var(--ease-cut);
+}
+
+/* The d occupies only the middle ~44% of the submark's 720 viewBox, so the box has to run well
+   past the size the letter should appear at. */
+.pl-mark {
+  width: min(31vw, 40vh);
+  height: min(31vw, 40vh);
+}
+
+.pl-mark svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* the wrapper animates; the dot inside keeps whatever transform Illustrator gave it */
+.pl-mark .pl-el {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 0.5s var(--ease-cut),
+    opacity 0.42s linear;
+}
+
+.pl-mark .pl-el > * {
+  fill: var(--cloud);
+}
+
+/* the dot lives outside the SVG so it can outlive it and fly to the film's head */
+.pl-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: var(--scarlet);
+  will-change: transform;
+}
+
+.pl-pct {
+  position: fixed;
+  left: calc(var(--u) * 1.5);
+  bottom: calc(var(--u) * 1.5);
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--n-50);
+}
+
+:root[data-render='static'] #preload {
+  display: none;
+}
+
+/* ------------------------------------------------------------- skip link */
+#skip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  transform: translateY(-140%);
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: var(--scarlet);
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  transition: transform 0.18s var(--ease-snap);
+}
+
+#skip:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--charcoal);
+  outline-offset: -6px;
+}
+
+/* --------------------------------------------------------- static content */
+/* Real, ordered copy for search and for assistive tech. The film above is marked decorative, so
+   this is what actually gets read — it is not a summary, it is the whole story in order. */
+#doc {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* No WebGL: the written version stops hiding and becomes the page. */
+:root[data-render='static'] #doc {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: calc(var(--u) * 5) calc(var(--u) * 2);
+  background: var(--charcoal);
+  color: var(--cloud);
+}
+
+:root[data-render='static'] #doc h1 {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 0 0 calc(var(--u) * 1.5);
+}
+
+:root[data-render='static'] #doc h2 {
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+
+:root[data-render='static'] #doc ol,
+:root[data-render='static'] #doc ul {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+  padding-left: calc(var(--u) * 1.5);
+  margin: calc(var(--u) * 2) 0;
+}
+
+:root[data-render='static'] #doc p {
+  color: var(--n-30);
+  line-height: 1.6;
+  margin: 0 0 calc(var(--u));
+}
+
+:root[data-render='static'] #doc a {
+  color: var(--scarlet);
+}
+
+:root[data-render='static'] #stage,
+:root[data-render='static'] #spine,
+:root[data-render='static'] #mark {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .scene,
+  .scene-inner,
+  #logo .logo-el,
+  #st-labels span,
+  .cta,
+  #skip {
+    transition: none !important;
+  }
+}
+
+/* ============================================================ small screens */
+/*
+ * The film's composition is fixed by the camera, not by CSS — stage.ts fits the drawing to the
+ * width below a square frame and rides it up into the top half, so everything here is only about
+ * the copy that sits under it. Two tiers, because a tablet and a phone fail differently: a tablet
+ * has the width and not the grid, a phone has neither.
+ *
+ * Nothing above 900px is touched. The desktop and laptop cases are the ones that were signed off,
+ * and every breakpoint here is a max-width for that reason.
+ */
+
+@media (max-width: 900px) {
+  :root {
+    --u: 12px;
+  }
+
+  /* the spine is a scroll indicator, not a member of the composition — it gets out of the way */
+  #spine {
+    left: 4px;
+    width: 20px;
+  }
+
+  #mark {
+    top: calc(var(--u) * 1.2);
+    left: calc(var(--u) * 2.2);
+  }
+
+  #mark svg {
+    width: 74px;
+  }
+
+  .scene {
+    padding: calc(var(--u) * 3) calc(var(--u) * 2.5) calc(var(--u) * 4) calc(var(--u) * 3);
+  }
+
+  /* 11px mono at 0.2em was set for names read across a 1600px frame; on a small one they are
+     landmarks on a drawing a third the size and want to be quieter than the copy, not louder */
+  #st-labels span {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+}
+
+@media (max-width: 560px) {
+  :root {
+    --u: 11px;
+  }
+
+  #spine {
+    left: 2px;
+    width: 14px;
+  }
+
+  #mark svg {
+    width: 64px;
+  }
+
+  /* 44ch is a measure for a column beside the drawing. Underneath it, the column *is* the width. */
+  .scene-inner {
+    max-width: 100%;
+  }
+
+  .scene {
+    padding: calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 3.5) calc(var(--u) * 2.6);
+  }
+
+  .scene-label {
+    font-size: clamp(2rem, 9vw, 2.6rem);
+  }
+
+  .station-line {
+    font-size: clamp(1.45rem, 6.6vw, 1.9rem);
+  }
+
+  .station-line.client {
+    font-size: clamp(1.6rem, 7.6vw, 2.2rem);
+  }
+
+  .tagline {
+    font-size: clamp(1.5rem, 7.4vw, 2.1rem);
+  }
+
+  /* Four columns do not fit across a phone, and a wrapping flex row centres the leftover pair so
+     the second row sits offset from the first. A two-column grid instead: the labels line up down
+     the page, which is the only thing making eight links read as four groups. */
+  .colophon {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    justify-items: start;
+    gap: calc(var(--u) * 1.05) calc(var(--u) * 1.6);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+  }
+
+  /* The sign-off now carries a form and a colophon it did not before, and on a 667px phone it was
+     closing to within thirteen pixels of the logo. The block gives the space back rather than the
+     mark, which owns this frame. */
+  .signoff {
+    padding-bottom: calc(var(--u) * 2.25);
+  }
+
+  .signoff-inner {
+    gap: calc(var(--u) * 1);
+  }
+
+  .counters {
+    gap: calc(var(--u) * 1.6);
+  }
+}
+
+/*
+ * Short phones, with the message box open.
+ *
+ * The sign-off is anchored to the bottom and grows upward, so opening the box pushes the tagline
+ * up — and on a 667px screen that put it straight through the wordmark. Keyed to height as well as
+ * width because it is a height problem: a 390x844 phone has the room and does not need any of this.
+ *
+ * The logo takes the extra lift rather than the copy taking a cut. Nothing is hidden and nothing
+ * gets smaller; the mark just sits where it already sits on every other screen, proportionally.
+ */
+@media (max-width: 560px) and (max-height: 720px) {
+  #logo svg {
+    margin-top: -29vh;
+  }
+
+  .note textarea {
+    height: 62px;
+  }
+
+  .signoff {
+    padding-bottom: calc(var(--u) * 1.5);
+  }
+}
+
+/* A touch device has no pointer to leave, so a hover transform sticks after the tap and the button
+   sits two pixels high until something else steals focus. */
+@media (hover: none) {
+  .cta:hover {
+    transform: none;
+  }
+}

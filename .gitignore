@@ -1,0 +1,13 @@
+# Dependencies — regenerated exactly from package-lock.json by `npm install`.
+# This is 106MB of the repo's 108MB and none of it is ours.
+node_modules/
+
+# Build output — Vercel and anyone else builds from source.
+site/dist/
+.vite/
+
+# Local tooling and OS noise
+*.log
+.DS_Store
+Thumbs.db
+.claude/settings.local.json

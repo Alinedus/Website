@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>alined — the shortest distance between intent and execution</title>
+  <meta name="description" content="A design intelligence layer for architects. Think, sketch and model on one surface, and change it in front of the client instead of going round the loop again." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="preload" aria-hidden="true">
+    <div class="pl-mark"></div>
+    <div class="pl-dot"></div>
+    <p class="pl-pct">000</p>
+  </div>
+
+  <button id="skip" type="button">Skip to contact</button>
+
+  <canvas id="gl"></canvas>
+
+  <div id="stage"></div>
+
+  <nav id="spine"></nav>
+  <button id="mark" type="button" aria-label="alined — back to the top"></button>
+
+  <div id="hud" hidden>
+    <div class="row"><span class="k">progress</span><span class="v" id="h-pct">000</span></div>
+    <div class="row"><span class="k">scene</span><span class="v" id="h-scene">01</span></div>
+    <div class="row"><span class="k">fps</span><span class="v" id="h-fps">—</span></div>
+    <div class="row"><span class="k">P1</span><span class="v">skeleton</span></div>
+  </div>
+
+  <main id="doc"></main>
+  <div id="space"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
