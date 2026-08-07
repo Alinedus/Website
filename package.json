@@ -1,0 +1,10 @@
+{
+  "name": "alined-website",
+  "private": true,
+  "description": "Root shim. The site itself lives in site/ — this exists so a build started from the repo root finds a package.json and delegates, instead of failing in two seconds with no explanation.",
+  "scripts": {
+    "build": "cd site && npm ci && npm run build",
+    "dev": "cd site && npm run dev",
+    "preview": "cd site && npm run preview"
+  }
+}
