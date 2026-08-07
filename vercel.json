@@ -1,16 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "Vercel reads whichever vercel.json sits at the project's Root Directory and ignores the other. This one is for a project rooted at the repo root; site/vercel.json is for one rooted at site/. They are kept equivalent on purpose, so the deploy is correct either way and setting the root directory is a preference rather than a repair.",
   "buildCommand": "npm run build",
   "outputDirectory": "site/dist",
   "headers": [
     {
-      "comment": "Vite content-hashes these, so a change ships under a new filename and this can never go stale.",
       "source": "/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "comment": "The fonts and the logo files keep their names, so they get a day rather than a year — swap a logo and it must not take twelve months to reach anyone.",
       "source": "/(fonts|logo)/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
     }
