@@ -106,7 +106,7 @@ export const SIGNOFF = {
         // It sits here because it belongs to the registered entity rather than to a person, and
         // the qualifier travels with it: "78240 99522" alone under an address would read as a
         // postcode or a plot number.
-        { prefix: 'Company No.', text: '78240 99522' },
+        { prefix: 'Company Ph. No.', text: '78240 99522' },
       ],
     },
     {
