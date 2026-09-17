@@ -67,11 +67,28 @@ body {
   pointer-events: none;
 }
 
+/*
+ * Sized in dynamic viewport units, because on a phone the two rulers disagree.
+ *
+ * `vh` is the large viewport — the height with the URL bar hidden — and it does not move when the
+ * bar slides back in. `window.innerHeight`, which is what the renderer sizes its drawing buffer
+ * from, is the visual viewport and does move. So with `height: 100vh` the canvas box stays tall
+ * while the buffer shrinks, and since setSize() is called with updateStyle false there is nothing
+ * to reconcile the two: the film gets stretched vertically for as long as the bar is showing, which
+ * is most of the time someone is scrolling. `dvh` is the same ruler innerHeight uses.
+ *
+ * `vw` goes for the same reason on the other axis — it counts a classic scrollbar's width, which
+ * `100%` against the viewport does not.
+ *
+ * The vh pair stays first as the fallback for anything without dynamic units.
+ */
 #gl {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
   display: block;
   z-index: 0;
 }
@@ -679,11 +696,14 @@ body {
 
 /* -------------------------------------------------------------- the spine */
 /* Loop to line, as a scroll indicator: a coiled arc that straightens as you pass the cut. */
+/* dvh for the same reason as the canvas: the indicator should run the height you can actually see,
+   not the height you would see if the URL bar were hidden */
 #spine {
   position: fixed;
   left: calc(var(--u) * 1.5);
   top: 0;
   height: 100vh;
+  height: 100dvh;
   width: 34px;
   z-index: 3;
   pointer-events: none;
@@ -1222,4 +1242,59 @@ body {
   .cta:hover {
     transform: none;
   }
+
+  /*
+   * Hit areas, for a finger rather than a cursor.
+   *
+   * The type here is small on purpose and is staying small — the colophon is 9px mono because it
+   * has to stay under the mark. But a 13px-tall link is a 13px-tall target, and a fingertip covers
+   * about forty. So the target grows and the type does not: an absolutely positioned pseudo-element
+   * spreads the touchable area past the glyphs without occupying a single pixel of layout, which
+   * matters because the six columns are justified against each other and anything with real height
+   * would push that apart.
+   *
+   * The vertical reach is deliberately short of the forty-four a standalone control gets. Stacked
+   * links sit a few pixels apart in these columns, and a target generous enough to be comfortable
+   * on its own would swallow its neighbour — a tap landing on the wrong address is worse than a tap
+   * that needs slightly better aim.
+   */
+  /* Only the two that are not already positioned. #mark and #skip are both `position: fixed`, and
+     restating position on them drops them out of the corner they are fixed to — which puts the
+     corner mark into the flow, on top of the very logo it is a small copy of. */
+  .colophon a,
+  #ask-open {
+    position: relative;
+  }
+
+  /* Sideways at any size: the columns have room between them and this costs nothing. */
+  .colophon a::after {
+    content: '';
+    position: absolute;
+    inset: 0 -10px;
+  }
+
+  /* standalone controls stand alone, so they can have the full forty-four in both directions */
+  #ask-open::after,
+  #mark::after {
+    content: '';
+    position: absolute;
+    inset: -11px -12px;
+  }
 }
+
+/*
+ * The colophon links are not grown vertically, and that is a decision rather than an oversight.
+ *
+ * Two stacked links in these columns sit about three pixels apart, so nothing fits a twenty-four
+ * pixel target into the sixteen pixels of space a link and its neighbour share — the column's own
+ * gap has to open up, and measured, opening it enough adds ninety-nine pixels to the row. A phone
+ * with seven hundred pixels of height does not have ninety-nine to give: the sign-off block runs
+ * into the bottom of the frame, the wordmark is driven onto its clamp, and the corner mark ends up
+ * sitting on top of the logo it is a smaller copy of. Three certain defects, on every short phone,
+ * bought for one that is an annoyance — a mistap lands on the address next to the one you wanted.
+ *
+ * So the target keeps the height its type gives it and takes every pixel that is free: the full
+ * width of its column either side, and a proper forty-four on the controls that stand alone and
+ * have nothing to collide with. If the row ever gets a taller home, this is the first thing to
+ * revisit.
+ */

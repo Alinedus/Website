@@ -9,6 +9,15 @@ gsap.registerPlugin(ScrollTrigger)
 /** Where the page fights back. Scene 05 — everything has stopped and he cannot go on. */
 const STOP: readonly [number, number] = [0.452, 0.508]
 const BASE_WHEEL = 1
+/**
+ * Note that on touch this is inert, and deliberately so.
+ *
+ * Lenis only takes a gesture over when `syncTouch` is set, and it is left at its default of false —
+ * so a finger scrolls the page natively, with the platform's own momentum, and `touchMultiplier`
+ * never reaches it. That is the right way round on a phone: a hand-rolled fling curve is a poor
+ * imitation of the one the OS already has, and the film reads the same scroll position either way.
+ * The constant stays because `resist()` writes it alongside the wheel value at the stop.
+ */
 const BASE_TOUCH = 1
 const BASE_DURATION = 1.05
 

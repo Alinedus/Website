@@ -576,7 +576,6 @@ export function createStage(
     resize()
 
     const a = aspect()
-    const port = a < 1
 
     // Act I's copy lives bottom-left, so the ring is pushed off-centre to the right to clear it.
     // The offset eases away as the ring straightens and the line takes the full width — and,
@@ -602,10 +601,20 @@ export function createStage(
     // On portrait a third term rides the whole drawing up into the top half so the bottom half is
     // clear for the copy. A fraction of the visible height rather than a fixed number of world
     // units, because the vertical extent now varies with how narrow the device is.
+    //
+    // The two clear the copy the same way and must not both be paid. liftFor() is measured in
+    // pixels off a landscape frame; on a 390x664 phone it asks for eleven world units on top of the
+    // portrait term's eight, and nineteen out of a half-height of twenty-four puts the line four
+    // fifths of the way to the ceiling — which is where Act II was ending up, a horizon jammed
+    // under the mark with the whole frame empty beneath it. So they hand over on the same ramp the
+    // frustum already switches on, and only one of them is ever fully in effect. Landscape is
+    // untouched: `narrow` is zero at every aspect at or above square, which is where the portrait
+    // term was already zero, so nothing above a = 1 moves by a pixel.
+    const narrow = clamp01((1 - a) / 0.35)
     const lift =
-      liftFor(smoothstep(0, 1, straighten)) +
+      liftFor(smoothstep(0, 1, straighten)) * (1 - narrow) +
       LOOP_LIFT * (1 - straighten) +
-      (port ? viewH * PORTRAIT_LIFT : 0)
+      viewH * PORTRAIT_LIFT * narrow
     shiftNow = shift
     roomNow = room
     camera.position
