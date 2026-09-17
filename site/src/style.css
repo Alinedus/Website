@@ -233,7 +233,9 @@ body {
 .signoff {
   align-content: end;
   justify-items: center;
-  padding-bottom: calc(var(--u) * 4);
+  /* Down from four units by exactly what .colophon's top margin went up by — the gap above the
+     information row is bought from the empty space below it, not from the frame. */
+  padding-bottom: calc(var(--u) * 2.25);
 }
 
 .signoff-inner {
@@ -451,7 +453,14 @@ body {
  * would split the eye three ways.
  */
 .colophon {
-  margin: calc(var(--u) * 0.5) 0 0;
+  /* Twice the gap it had. The row is a different kind of thing from the call to action above it —
+     one is what to do, the other is who we are — and eight pixels under the rule read as the two
+     being one block that had run on.
+
+     The space is taken from the sign-off's own bottom padding rather than added to the frame: this
+     margin goes up by exactly what that padding comes down by, so the block grows upward and sinks
+     by the same amount, its top does not move, and neither does the mark fitLogo() hangs off it. */
+  margin: calc(var(--u) * 2.25) 0 0;
   display: grid;
   /* company · address · write · call · follow · founders — minmax(0,…) so a long unbroken string
      cannot push its own track wider than its share and blow the row out sideways */
@@ -1197,6 +1206,13 @@ body {
   /* the floor the tallest column sits at, which is what sets the row's height */
   .colophon > div {
     gap: 3px;
+  }
+
+  /* The gap above the row goes back to what it was. It is paid for out of the padding underneath,
+     and on these screens that padding is already down to half a unit — there is nothing left to
+     trade, so taking it here would come straight out of the mark's clearance instead. */
+  .colophon {
+    margin-top: calc(var(--u) * 0.5);
   }
 }
 
