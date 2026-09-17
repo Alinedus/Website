@@ -59,8 +59,13 @@ export const ACT2: Beat[] = [
 
 /**
  * The contact number, in one place, so the display text and the `tel:` href cannot drift apart.
+ *
+ * The digits are the dialling form and the spacing is derived from them rather than written out
+ * beside them — set in the same two fives the other number under CALL already uses. A `tel:` href
+ * has to be unspaced, so these are the one pair on the site that must differ and must still agree.
  */
 const TEL = '7010815677'
+const TEL_SPACED = `${TEL.slice(0, 5)} ${TEL.slice(5)}`
 
 export const SIGNOFF = {
   tagline: 'The shortest distance between intent and execution.',
@@ -105,8 +110,9 @@ export const SIGNOFF = {
         // The company's own number, which is not one of the two you ring — those are under CALL.
         // It sits here because it belongs to the registered entity rather than to a person, and
         // the qualifier travels with it: "78240 99522" alone under an address would read as a
-        // postcode or a plot number.
-        { prefix: 'Company Ph. No.', text: '78240 99522' },
+        // postcode or a plot number. Carries its country code, which the address it sits under
+        // has already established is India.
+        { prefix: 'Company Ph. No.', text: '+91 78240 99522' },
       ],
     },
     {
@@ -119,7 +125,7 @@ export const SIGNOFF = {
     {
       label: 'Call',
       items: [
-        { text: TEL, href: `tel:${TEL}` },
+        { text: TEL_SPACED, href: `tel:${TEL}` },
         { text: '94483 10888', href: 'tel:9448310888' },
       ],
     },
