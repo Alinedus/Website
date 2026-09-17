@@ -149,35 +149,21 @@ export function createUI(): UI {
             (g) => `<div>
               <dt>${g.label}</dt>
               ${g.items
-                .map(
-                  (i) =>
-                    `<dd><a href="${i.href}"${
-                      i.href.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''
-                    }>${i.text}</a></dd>`,
+                .map((i) =>
+                  // the company columns are facts rather than destinations, so they render as
+                  // plain text — an anchor with nowhere to go is worse than no anchor
+                  i.href
+                    ? `<dd><a href="${i.href}"${
+                        i.href.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''
+                      }>${i.text}</a></dd>`
+                    : `<dd>${i.text}</dd>`,
                 )
                 .join('')}
             </div>`,
           )
           .join('')}
       </dl>
-    </div>
-    <dl class="registry" aria-label="Company information">
-      ${SIGNOFF.registry
-        .map(
-          (f) => `<div>
-            <dt>${f.label}</dt>
-            <dd>${f.href ? `<a href="${f.href}">${f.value}</a>` : f.value}</dd>
-          </div>`,
-        )
-        .join('')}
-    </dl>`
-  // The registry is a sibling of .signoff-inner, not a child of it, and that is load-bearing rather
-  // than tidy: fitLogo() places the mark against .signoff-inner's own top edge, so anything added
-  // inside that block is measured and pushes the wordmark up by its full height. At 1280x720 with
-  // the message box open there are only sixty-odd pixels of headroom left, which a four-column row
-  // carrying a hundred-character address eats outright — the mark hits the 10px clamp and the gap
-  // the whole composition is set on disappears. Outside the block it costs the layout only the
-  // space it actually occupies, which the sign-off's own bottom padding was already holding empty.
+    </div>`
   // The footer said "Design intelligence layer" — which the primary logo already carries, in its
   // own type, two inches above it. Two of the same phrase in one frame is one too many, and it was
   // the thing standing between the tagline and the space it needed.

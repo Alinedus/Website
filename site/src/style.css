@@ -230,14 +230,10 @@ body {
 
 /* --------------------------------------------------------------- sign-off */
 /* the only centred block on the site — the logo is above it and owns the frame */
-/* The bottom padding was four units of deliberately empty space. The registry now sits in it, so
-   the padding is what is left under the registry rather than under the colophon — the block above
-   stays within a few pixels of where it was, and the mark above that barely moves. Reducing it is
-   what keeps the registry from costing the composition its height twice over. */
 .signoff {
   align-content: end;
   justify-items: center;
-  padding-bottom: calc(var(--u) * 0.75);
+  padding-bottom: calc(var(--u) * 4);
 }
 
 .signoff-inner {
@@ -432,13 +428,21 @@ body {
 
 /* ---------------------------------------------------------------- colophon */
 /*
- * Eight destinations under a logo reveal, without the frame turning into a link farm.
+ * Who alined is and how to reach them, as one row of six labelled columns.
  *
  * Three things keep it subordinate to the mark. It is set at 10px mono — smaller than the two
- * addresses it replaced, not larger, even though it now carries four times as much. The labels are
+ * addresses it replaced, not larger, even though it now carries six times as much. The labels are
  * the only new typographic device and they are the dimmest thing on the page, so the eye reads
- * "call" and stops, rather than scanning eight strings for the one it wants. And no group runs past
- * two lines, so the whole block is two lines tall however it wraps.
+ * "call" and stops, rather than scanning a dozen strings for the one it wants. And it is one row,
+ * not two: a second strip of the same labels at the same size underneath reads as one tangled
+ * table rather than two blocks, whatever gap you put between them.
+ *
+ * A grid rather than the centred wrapping flex it used to be. Flex sized every column to its own
+ * longest string and bunched the lot in the middle, which was right for four columns of short
+ * links and wrong the moment a company name and a registered address joined them — the address
+ * alone is longer than the other five together. The track weights below are proportional to what
+ * each column actually has to carry, so the row spans the frame and the address gets the measure
+ * it needs to fall in two lines instead of six.
  *
  * No icons. This site has spent thirteen viewports being made of dots, mono type and one scarlet,
  * and an Instagram glyph would be the first thing in it borrowed from somebody else's brand.
@@ -448,10 +452,14 @@ body {
  */
 .colophon {
   margin: calc(var(--u) * 0.5) 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: calc(var(--u) * 1.15) calc(var(--u) * 2.4);
+  display: grid;
+  /* company · address · write · call · follow · founders — minmax(0,…) so a long unbroken string
+     cannot push its own track wider than its share and blow the row out sideways */
+  grid-template-columns:
+    minmax(0, 1.4fr) minmax(0, 2.75fr) minmax(0, 1.55fr)
+    minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: calc(var(--u) * 1.15) calc(var(--u) * 1.75);
+  width: min(1400px, 88vw);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -462,6 +470,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .colophon dt {
@@ -474,6 +483,11 @@ body {
 
 .colophon dd {
   margin: 0;
+  /* the company columns are plain text and inherit nothing from the link rule below */
+  color: var(--ink-dim);
+  line-height: 1.5;
+  /* the address is one unbroken run of proper nouns — let it break rather than push its track */
+  overflow-wrap: break-word;
 }
 
 .colophon a {
@@ -486,77 +500,6 @@ body {
 
 .colophon a:hover,
 .colophon a:focus-visible {
-  color: var(--ink);
-  border-bottom-color: currentColor;
-}
-
-/* ---------------------------------------------------------------- registry */
-/*
- * The registered company, under everything else.
- *
- * A sibling of .signoff-inner rather than a row inside it — see the note in ui.ts. The sign-off was
- * already holding this strip of its own bottom padding empty, so the row largely moves into space
- * that existed rather than asking the composition for new space, and the mark above it barely
- * moves.
- *
- * Four equal columns, so the four facts share the width evenly however long each one runs. The
- * address is the only reason this needs any thought at all: at a hundred and eleven characters it
- * is longer than the other three put together, and in a column of its own it wraps to three or four
- * lines while its neighbours use one. Equal columns are still the right call — the alternative is a
- * row whose gaps are set by the longest string in it, which reads as four things that happen to be
- * near each other rather than one row.
- *
- * Quieter than the colophon above it, deliberately: half a step smaller, a little more transparent,
- * and no hover on anything but the number. This is the fine print, and it should read as the fine
- * print without anyone having to be told.
- */
-.registry {
-  /* Far enough below the colophon to be a second block rather than a fifth row of the first. The
-     two carry the same kind of label at nearly the same size, so without this gap the eye reads one
-     tangled eight-column table — and the registry runs twice the colophon's width, which makes that
-     reading worse, not better. The space is bought back from the padding under it. */
-  margin: calc(var(--u) * 1.5) 0 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px calc(var(--u) * 1.75);
-  width: min(1180px, 92vw);
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  line-height: 1.55;
-  text-align: left;
-}
-
-/* A step quieter than the colophon's labels rather than a match for them — the hierarchy is doing
-   as much of the separating here as the gap above is. */
-.registry dt {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 8px;
-  color: var(--ink-dim);
-  opacity: 0.45;
-  margin-bottom: 1px;
-}
-
-.registry dd {
-  margin: 0;
-  color: var(--ink-dim);
-  opacity: 0.7;
-  /* the address is one unbroken string of proper nouns — let it break rather than push the row */
-  overflow-wrap: break-word;
-}
-
-/* the number is the one thing in here anybody clicks, so it is the one thing that behaves as a link */
-.registry a {
-  pointer-events: auto;
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: color 0.18s linear, border-color 0.18s linear;
-}
-
-.registry a:hover,
-.registry a:focus-visible {
   color: var(--ink);
   border-bottom-color: currentColor;
 }
@@ -1068,25 +1011,26 @@ body {
     letter-spacing: 0.14em;
   }
 
-  /* Four columns stop being four columns here: at this width the address column is down to about
-     forty characters and runs to five or six lines while the other three use one, so the row is
-     mostly empty space with one tall paragraph in it. Two columns give the address twice the
-     measure and put the row back in proportion. */
-  .registry {
-    grid-template-columns: repeat(2, 1fr);
-    gap: calc(var(--u) * 0.75) calc(var(--u) * 1.5);
-    width: min(680px, 88vw);
-    /* the two blocks are closer in width here, so they separate on less */
-    margin-top: calc(var(--u) * 1);
+  /* Six tracks across a tablet leave the address about thirty characters, which is four or five
+     lines of it against one line of everything else. Three columns and two rows instead —
+     company · address · write, then call · follow · founders — so the address keeps a measure
+     worth reading and the row stays square. */
+  .colophon {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(var(--u) * 1) calc(var(--u) * 1.6);
+    width: min(700px, 92vw);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
   }
 
-  /* Restated because .scene's padding shorthand above sets a bottom padding of its own, and being
-     later in the file it outranks the .signoff rule that the registry's spacing depends on. The two
-     agreed on four units before the registry existed, so nothing revealed the conflict; they do not
-     agree now. Without this a 900x600 window loses the reclaimed space and the mark hits its clamp
-     with the message box open. */
+  /* Two rows of three stand three times taller than the single row they replace, and the padding
+     under them was four units of deliberately empty space. Restated here rather than left to the
+     base rule because .scene's padding shorthand above sets a bottom padding of its own and, being
+     later in the file, outranks it — the two agreed on four units before the row had a second row,
+     so nothing had ever revealed the conflict. Without this a 900x600 window loses the space and
+     the mark hits its clamp with the message box open. */
   .signoff {
-    padding-bottom: calc(var(--u) * 1.25);
+    padding-bottom: calc(var(--u) * 1.5);
   }
 }
 
@@ -1129,24 +1073,40 @@ body {
     font-size: clamp(1.5rem, 7.4vw, 2.1rem);
   }
 
-  /* Four columns do not fit across a phone, and a wrapping flex row centres the leftover pair so
-     the second row sits offset from the first. A two-column grid instead: the labels line up down
-     the page, which is the only thing making eight links read as four groups. */
+  /* Six columns do not fit across a phone. Two equal ones instead — three rows of two, labels
+     lining up down the page, which is the only thing making twelve strings read as six groups.
+     The company and the address take the full width on their own rows above them: the address
+     needs every character it can get here, and a name that wraps mid-word helps nobody. */
   .colophon {
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-items: start;
-    gap: calc(var(--u) * 1.05) calc(var(--u) * 1.6);
-    font-size: 9.5px;
-    letter-spacing: 0.08em;
+    gap: calc(var(--u) * 0.8) calc(var(--u) * 1.2);
+    width: min(330px, 88vw);
+    /* Four rows of type where the desktop has one, on the screen with the least room for it. Every
+       string is still here and still readable; they are simply set as tightly as mono at this size
+       goes before the address stops being a thing you can read at a glance. */
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+
+  .colophon > div {
+    gap: 3px;
+  }
+
+  .colophon dd {
+    line-height: 1.4;
+  }
+
+  .colophon > div:nth-child(-n + 2) {
+    grid-column: 1 / -1;
   }
 
   /* The sign-off now carries a form and a colophon it did not before, and on a 667px phone it was
      closing to within thirteen pixels of the logo. The block gives the space back rather than the
-     mark, which owns this frame. */
+     mark, which owns this frame. Down again from 2.25u now the colophon runs to four rows here:
+     the space under it is the last slack in the frame and the row above needs it more. */
   .signoff {
-    padding-bottom: calc(var(--u) * 2.25);
+    padding-bottom: calc(var(--u) * 1);
   }
 
   .signoff-inner {
@@ -1155,24 +1115,6 @@ body {
 
   .counters {
     gap: calc(var(--u) * 1.6);
-  }
-
-  /* One column. Two would give the address about twenty characters of measure, which is a word a
-     line — and the colophon directly above is already a two-column grid, so a second one under it
-     reads as one eight-row table rather than two blocks. Label over value, straight down. */
-  .registry {
-    grid-template-columns: 1fr;
-    gap: calc(var(--u) * 0.6);
-    width: min(320px, 86vw);
-    font-size: 9px;
-    letter-spacing: 0.06em;
-    line-height: 1.5;
-    text-align: center;
-  }
-
-  .registry dt {
-    font-size: 8.5px;
-    letter-spacing: 0.18em;
   }
 }
 
@@ -1201,39 +1143,27 @@ body {
 }
 
 /*
- * Short windows, at any width below the desktop composition.
+ * Short windows, at any width below the desktop row.
  *
- * The registry's four labels each cost a line of their own, and on a short screen those four lines
- * are the difference between the wordmark sitting where it belongs and sitting on its clamp with
- * the message box open. Keyed on height rather than width because that is what actually runs out:
- * a 900x600 laptop window and a 320x568 phone fail in exactly the same way and for the same reason,
- * while a 768x1024 tablet has the room and needs none of it.
- *
- * The label runs inline with its value instead — same words, same order, nothing hidden and nothing
- * abbreviated — which folds the block by about a third. The bottom padding goes with it, since the
- * registry is the last thing in the frame and carries its own space.
+ * Keyed on height because height is what runs out: a 900x600 laptop window and a 320x568 phone
+ * fail in exactly the same way — the row has folded to two or four rows of type and there is no
+ * longer enough frame left above it for the mark — while a 768x1024 tablet has the room and needs
+ * none of this. The row gives back its own leading and the padding under it; nothing is hidden and
+ * nothing is dropped.
  */
 @media (max-width: 900px) and (max-height: 720px) {
   .signoff {
     padding-bottom: calc(var(--u) * 0.5);
   }
 
-  .registry {
-    gap: calc(var(--u) * 0.3);
-    line-height: 1.4;
-    margin-top: calc(var(--u) * 0.6);
+  .colophon {
+    gap: calc(var(--u) * 0.7) calc(var(--u) * 1.2);
+    font-size: 9px;
+    letter-spacing: 0.05em;
   }
 
-  .registry > div {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    column-gap: 6px;
-  }
-
-  .registry dt {
-    margin-bottom: 0;
-    line-height: 1.6;
+  .colophon dd {
+    line-height: 1.38;
   }
 }
 

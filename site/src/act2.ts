@@ -58,11 +58,7 @@ export const ACT2: Beat[] = [
    ground they used to occupy. */
 
 /**
- * The contact number, in one place.
- *
- * It appears twice in the sign-off — as the first number under CALL, and again as the registered
- * company's contact — and in both the display text and the `tel:` href have to agree. Deriving all
- * four from one constant is the only arrangement in which they cannot drift apart.
+ * The contact number, in one place, so the display text and the `tel:` href cannot drift apart.
  */
 const TEL = '7010815677'
 
@@ -72,17 +68,39 @@ export const SIGNOFF = {
   ctaMail: 'lets.get.alined@gmail.com',
   contact: ['lets.get.alined@gmail.com', 'reshma@lets-get-alined.com'],
   /**
-   * Everything else, as four labelled pairs rather than one long line of links.
+   * Everything else, as six labelled columns rather than one long line of links.
    *
    * Eight destinations under a logo reveal is the point where a sign-off turns into a link farm.
-   * Grouping them two-by-two under four quiet labels means the eye lands on a label first and reads
-   * one short column, instead of scanning eight unrelated strings for the one it wants. It is set
-   * in mono, at the size the addresses already were, and no group is longer than two lines — so the
-   * whole block stays subordinate to the mark above it, which is the thing the frame is actually
-   * for. Four twos also wrap cleanly: four columns on a desktop, two on a phone, and never a
-   * ragged last row.
+   * Grouping them under quiet labels means the eye lands on a label first and reads one short
+   * column, instead of scanning a dozen unrelated strings for the one it wants. It is set in mono,
+   * at the size the two addresses were before any of this, so the whole block stays subordinate to
+   * the mark above it, which is what the frame is actually for.
+   *
+   * The first two columns are the registered company — who alined is on paper, as filed. They sit
+   * in this row rather than in a strip of their own underneath it: a second row of the same labels
+   * at the same size reads as one tangled table, and the company is not a footnote to the contact
+   * details, it is the first thing in the row. Their wording is the only copy on the site that is
+   * not ours to edit, down to the capitalisation.
+   *
+   * Only the last four carry links. A company name, a CIN and a registered address are there to be
+   * read, and underlining them would promise somewhere to go.
    */
   colophon: [
+    {
+      label: 'Company',
+      items: [{ text: 'BOTAlINE INNOVATION PRIVATE LIMITED' }, { text: 'U62099KA2026PTC220708' }],
+    },
+    {
+      label: 'Address',
+      // One string, wrapped by its column rather than broken by hand — at the width this column
+      // gets it falls into two lines on its own, and a hard break would only be right at one
+      // viewport and wrong at the rest.
+      items: [
+        {
+          text: 'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore, Bangalore North, Karnataka, India, 560001',
+        },
+      ],
+    },
     {
       label: 'Write',
       items: [
@@ -111,28 +129,7 @@ export const SIGNOFF = {
         { text: 'Rithu BD', href: 'https://www.linkedin.com/in/rithu-bd-816015186/' },
       ],
     },
-  ],
-  /**
-   * Who the company actually is, on the record.
-   *
-   * Kept apart from the colophon rather than added to it as a fifth group, because the two say
-   * different kinds of thing: the colophon is four ways to reach a person, this is the registered
-   * entity behind them. It is also the only block on the site whose wording is not ours to edit —
-   * the name, the CIN and the registered office are as filed, down to the capitalisation.
-   *
-   * One value per field, and only the number is a link: a CIN and a registered address are there to
-   * be read, and underlining them would promise somewhere to go.
-   */
-  registry: [
-    { label: 'Company', value: 'BOTAlINE INNOVATION PRIVATE LIMITED' },
-    { label: 'CIN', value: 'U62099KA2026PTC220708' },
-    {
-      label: 'Registered address',
-      value:
-        'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore, Bangalore North, Karnataka, India, 560001',
-    },
-    { label: 'Contact', value: TEL, href: `tel:${TEL}` },
-  ] as { label: string; value: string; href?: string }[],
+  ] as { label: string; items: { text: string; href?: string }[] }[],
   footer: 'Design intelligence layer',
   /** the second route out of the sign-off: say something, rather than ask for the demo */
   open: 'or write to us',
