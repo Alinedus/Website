@@ -57,6 +57,15 @@ export const ACT2: Beat[] = [
    copy in Act II now, and the line's drift and the house both already run to 0.936 to cover the
    ground they used to occupy. */
 
+/**
+ * The contact number, in one place.
+ *
+ * It appears twice in the sign-off — as the first number under CALL, and again as the registered
+ * company's contact — and in both the display text and the `tel:` href have to agree. Deriving all
+ * four from one constant is the only arrangement in which they cannot drift apart.
+ */
+const TEL = '7010815677'
+
 export const SIGNOFF = {
   tagline: 'The shortest distance between intent and execution.',
   cta: 'Request demo',
@@ -84,7 +93,7 @@ export const SIGNOFF = {
     {
       label: 'Call',
       items: [
-        { text: '78240 99522', href: 'tel:7824099522' },
+        { text: TEL, href: `tel:${TEL}` },
         { text: '94483 10888', href: 'tel:9448310888' },
       ],
     },
@@ -103,6 +112,27 @@ export const SIGNOFF = {
       ],
     },
   ],
+  /**
+   * Who the company actually is, on the record.
+   *
+   * Kept apart from the colophon rather than added to it as a fifth group, because the two say
+   * different kinds of thing: the colophon is four ways to reach a person, this is the registered
+   * entity behind them. It is also the only block on the site whose wording is not ours to edit —
+   * the name, the CIN and the registered office are as filed, down to the capitalisation.
+   *
+   * One value per field, and only the number is a link: a CIN and a registered address are there to
+   * be read, and underlining them would promise somewhere to go.
+   */
+  registry: [
+    { label: 'Company', value: 'BOTAlINE INNOVATION PRIVATE LIMITED' },
+    { label: 'CIN', value: 'U62099KA2026PTC220708' },
+    {
+      label: 'Registered address',
+      value:
+        'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore, Bangalore North, Karnataka, India, 560001',
+    },
+    { label: 'Contact', value: TEL, href: `tel:${TEL}` },
+  ] as { label: string; value: string; href?: string }[],
   footer: 'Design intelligence layer',
   /** the second route out of the sign-off: say something, rather than ask for the demo */
   open: 'or write to us',
