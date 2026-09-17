@@ -102,6 +102,11 @@ export const SIGNOFF = {
       items: [
         { text: 'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore,' },
         { text: 'Bangalore North, Karnataka, India, 560001' },
+        // The company's own number, which is not one of the two you ring — those are under CALL.
+        // It sits here because it belongs to the registered entity rather than to a person, and
+        // the qualifier travels with it: "78240 99522" alone under an address would read as a
+        // postcode or a plot number.
+        { prefix: 'Company No.', text: '78240 99522' },
       ],
     },
     {
@@ -132,7 +137,7 @@ export const SIGNOFF = {
         { text: 'Rithu BD', href: 'https://www.linkedin.com/in/rithu-bd-816015186/' },
       ],
     },
-  ] as { label: string; items: { text: string; href?: string }[] }[],
+  ] as { label: string; items: { text: string; href?: string; prefix?: string }[] }[],
   footer: 'Design intelligence layer',
   /** the second route out of the sign-off: say something, rather than ask for the demo */
   open: 'or write to us',

@@ -151,12 +151,14 @@ export function createUI(): UI {
               ${g.items
                 .map((i) =>
                   // the company columns are facts rather than destinations, so they render as
-                  // plain text — an anchor with nowhere to go is worse than no anchor
+                  // plain text — an anchor with nowhere to go is worse than no anchor. A prefix is
+                  // a qualifier the value cannot be read without, set back like the station costs
+                  // so the eye still lands on the number.
                   i.href
                     ? `<dd><a href="${i.href}"${
                         i.href.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : ''
                       }>${i.text}</a></dd>`
-                    : `<dd>${i.text}</dd>`,
+                    : `<dd>${i.prefix ? `<i>${i.prefix}</i> ` : ''}${i.text}</dd>`,
                 )
                 .join('')}
             </div>`,

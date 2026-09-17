@@ -509,6 +509,15 @@ body {
   overflow-wrap: break-word;
 }
 
+/* A qualifier that has to travel with its value — "Company No." before the number, set back the
+   way the station costs set back their artifact so the number is still what the eye lands on.
+   Inline rather than a line of its own: it fits, and a second stacked label in a column that
+   already has one would read as a second column. */
+.colophon i {
+  font-style: normal;
+  opacity: 0.58;
+}
+
 .colophon a {
   pointer-events: auto;
   color: var(--ink-dim);
@@ -1176,13 +1185,18 @@ body {
   }
 
   .colophon {
-    gap: calc(var(--u) * 0.7) calc(var(--u) * 1.2);
+    gap: calc(var(--u) * 0.5) calc(var(--u) * 1.2);
     font-size: 9px;
     letter-spacing: 0.05em;
   }
 
   .colophon dd {
-    line-height: 1.38;
+    line-height: 1.32;
+  }
+
+  /* the floor the tallest column sits at, which is what sets the row's height */
+  .colophon > div {
+    gap: 3px;
   }
 }
 
