@@ -466,10 +466,29 @@ body {
   text-align: left;
 }
 
+/*
+ * Every column is a label and two values, and every column is justified between the two edges of
+ * the row.
+ *
+ * The columns do not hold the same number of *lines* — the company name takes two where a phone
+ * number takes one, and the address takes two or three depending on the frame. Packed from the top
+ * they end at six different heights, which reads as a row that was cut off rather than set. So the
+ * grid stretches them all to the tallest, and each one spreads its own three parts across that
+ * height: first line on the same line as every other first line, last line on the same line as
+ * every other last line, and the slack — however much each column happens to have — absorbed into
+ * the gaps between. A column carrying four lines ends up tight; one carrying two breathes. Nothing
+ * is padded and no empty line is added anywhere; the leading is simply doing the work.
+ *
+ * This is also why the address is two entries rather than one wrapping string: space-between has
+ * nothing to distribute in a column holding a single value, and that column alone would hang its
+ * label off the top with all of the slack underneath it.
+ */
 .colophon > div {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: space-between;
+  /* the floor, not the gap — space-between opens these up by whatever the column has spare */
+  gap: 5px;
   min-width: 0;
 }
 

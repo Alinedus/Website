@@ -92,13 +92,16 @@ export const SIGNOFF = {
     },
     {
       label: 'Address',
-      // One string, wrapped by its column rather than broken by hand — at the width this column
-      // gets it falls into two lines on its own, and a hard break would only be right at one
-      // viewport and wrong at the rest.
+      // Broken at the comma between the street and the district — the same two halves anyone
+      // writing this address on an envelope would use, and the exact text either side of it.
+      //
+      // Two entries rather than one wrapping string so this column has the same three parts every
+      // other column has: a label and two values. That is what lets the row distribute itself —
+      // see the note on .colophon > div. One long string would give this column a single value to
+      // place, and all of its slack would fall into the gap under the label.
       items: [
-        {
-          text: 'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore, Bangalore North, Karnataka, India, 560001',
-        },
+        { text: 'NO.18, BRIGADE ROAD, RICHMOND TOWN, Mahatma Gandhi Road, Bangalore,' },
+        { text: 'Bangalore North, Karnataka, India, 560001' },
       ],
     },
     {
