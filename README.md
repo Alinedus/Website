@@ -29,6 +29,7 @@ delegate into `site/`.
 | `site/src` | the film — see the map below |
 | `site/public` | the two Geist faces and the logo SVGs |
 | `brand-assets` | the full brand kit: logos, palette, both typefaces |
+| `docs` | reference drawings, starting with the app's database schema |
 | `alined-website-plan.html` | the original written plan |
 
 The interesting files, in the order the film uses them:
