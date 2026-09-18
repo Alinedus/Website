@@ -198,7 +198,8 @@ Four clusters, all of them rooted in `auth.users`:
   that produced them.
 - **Paths are keys, not content.** `geometry_path`, `reference_path`,
   `recording_path` and `r2_key` point into object storage; nothing in Postgres
-  enforces that the object is there.
+  enforces that the object is there. The buckets they land in, and the policies
+  guarding them, are in [`storage-schema.md`](./storage-schema.md).
 - **Composite keys.** `org_members` is keyed `(org_id, user_id)` — one role per
   user per org. `usage_costs` is keyed `(user_id, day)` — one row per user per
   day, updated in place. `drawing_revisions` has **no** unique constraint on
