@@ -2,7 +2,9 @@
 
 The alined app's Supabase Postgres database: every table in `public`, its
 columns, and the links between them. `auth.users` is Supabase's own table —
-drawn here as `auth_users`, and only as the anchor the rest hangs from.
+drawn here as `auth_users`, and only as the anchor the rest hangs from. It has a
+diagram of its own in [`auth-schema.md`](./auth-schema.md), along with the other
+twenty-six tables of the `auth` schema.
 
 ```mermaid
 erDiagram
