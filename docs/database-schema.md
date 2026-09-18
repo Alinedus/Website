@@ -186,7 +186,9 @@ Four clusters, all of them rooted in `auth.users`:
   `correction_events` logs individual edits, `usage_costs` rolls spend up per
   user per day.
 - **Support** — `support_threads` with `support_messages` beneath them, each
-  message either the user's or the founder's.
+  message either the user's or the founder's. These two are also the only
+  tables in the schema published to Realtime, so they are the only ones that
+  stream to a client — see [`realtime-schema.md`](./realtime-schema.md).
 
 ## What the diagram cannot say
 
