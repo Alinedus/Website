@@ -1296,6 +1296,56 @@ body {
   }
 }
 
+/* ========================================================= mobile composition */
+/*
+ * Where the sign-off sits on a phone.
+ *
+ * The block is anchored to the bottom and the mark is placed a measured gap above it, so the
+ * block's height is what decides where everything sits. When the phone footer went from six
+ * groups to two it lost about a hundred and seventy pixels, and because the bottom is the fixed
+ * edge, the tagline, the button and the mark all sank by that much: at 390x844 the mark ended up
+ * 403px down a 844px screen, with eleven pixels under the whole composition. Nearly half the
+ * frame empty above, nothing below.
+ *
+ * Two block-level values put it right, and the mark needs no rule of its own — fitLogo() measures
+ * the block every time it changes and carries the mark with it, which is the whole reason that
+ * function exists. Nudging the mark directly would be fighting it.
+ *
+ *   padding-bottom  lifts the whole block clear of the bottom edge, so the composition has
+ *                   somewhere to sit rather than being pressed against it.
+ *   colophon margin  opens the distance between the ask and the company, which is the join
+ *                   between the two things this frame is doing — here is what to do, and here is
+ *                   who we are. At 36px they read as one run-on block.
+ *
+ * Both blocks are keyed to 560px and below, and both are placed after the short-window tier
+ * above so they win for phones without touching it: that tier is shared with a 900x600 laptop
+ * window, which is not a phone and is not being changed.
+ */
+@media (max-width: 560px) {
+  .signoff {
+    padding-bottom: calc(var(--u) * 9);
+  }
+
+  .colophon {
+    margin-top: calc(var(--u) * 12);
+  }
+}
+
+/*
+ * Short phones have the same problem and less room to answer it with, so the same two values are
+ * set smaller rather than dropped — a 667px screen still has the mark too low, it just cannot
+ * afford eight units under the block and ten above the colophon.
+ */
+@media (max-width: 560px) and (max-height: 720px) {
+  .signoff {
+    padding-bottom: calc(var(--u) * 5);
+  }
+
+  .colophon {
+    margin-top: calc(var(--u) * 7);
+  }
+}
+
 /* ============================================================== contact page */
 /*
  * /contact.html — the colophon as a page rather than a strip.
