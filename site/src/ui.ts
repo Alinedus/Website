@@ -170,10 +170,17 @@ export function createUI(): UI {
         <!-- The seventh group, and a phone's only route to the contact page. Inside the dl rather
              than beside it so it inherits the row's own label and link styling, and carries a dt
              like every other group: a dd without one is not a valid definition list. CSS keeps it
-             out of the layout entirely above 560px. -->
+             out of the layout entirely above 560px, and hides the dt below it — the word is the
+             link now, and setting it twice would read as a label with its own echo underneath.
+             The word and the arrow are wrapped separately because only the word is underlined,
+             and the arrow is marked decorative so the link announces itself as "Contact". -->
         <div class="colophon-more">
           <dt>${SIGNOFF.colophonMore.label}</dt>
-          <dd><a href="${SIGNOFF.colophonMore.href}">${SIGNOFF.colophonMore.text}</a></dd>
+          <dd><a href="${SIGNOFF.colophonMore.href}"><span class="cm-word">${
+            SIGNOFF.colophonMore.label
+          }</span><span class="cm-arrow" aria-hidden="true">${
+            SIGNOFF.colophonMore.arrow
+          }</span></a></dd>
         </div>
       </dl>
     </div>`

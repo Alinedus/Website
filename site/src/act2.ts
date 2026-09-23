@@ -157,7 +157,10 @@ export const SIGNOFF = {
    */
   colophonMore: {
     label: 'Contact',
-    text: 'All the details',
+    /* Kept beside the word rather than in the CSS as a ::after, so the one thing that is text
+       stays in the file that holds the text — and so a reader of the markup sees the whole link.
+       It is decoration: the markup hides it from assistive tech, which gets "Contact" alone. */
+    arrow: '→',
     href: '/contact.html',
   },
   footer: 'Design intelligence layer',

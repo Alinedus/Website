@@ -1174,6 +1174,42 @@ body {
     display: flex;
   }
 
+  /*
+   * CONTACT →
+   *
+   * The label is the link here, so the group's own dt is stood down: set both and the word
+   * appears twice, once as a heading and once as the thing under it. What is left is one line in
+   * the same register as the COMPANY label above it — same face, same size, same tracking, same
+   * ink — underlined, because it is the only thing in this footer a finger is meant to find.
+   *
+   * The rule is the word's, not the link's. .colophon a carries a transparent bottom border that
+   * fills in on hover, and left alone it would run under the arrow too; standing it down and
+   * giving the border to the word instead is what puts the line under CONTACT and nothing else.
+   * currentColor, so it still brightens with the text when there is a pointer to brighten it.
+   */
+  .colophon-more dt {
+    display: none;
+  }
+
+  .colophon-more a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35em;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    border-bottom: 0;
+  }
+
+  .colophon-more .cm-word {
+    border-bottom: 1px solid currentColor;
+  }
+
+  /* Tracking is space after a glyph, and this glyph is the last one on the line — 0.22em of it
+     would hang off the arrow's right and pull the whole thing off the margin the company sits on. */
+  .colophon-more .cm-arrow {
+    letter-spacing: 0;
+  }
+
   /* The sign-off now carries a form and a colophon it did not before, and on a 667px phone it was
      closing to within thirteen pixels of the logo. The block gives the space back rather than the
      mark, which owns this frame. Down again from 2.25u now the colophon runs to four rows here:
