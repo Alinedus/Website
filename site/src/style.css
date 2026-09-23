@@ -1442,6 +1442,18 @@ body {
 }
 
 /*
+ * The value beside a founder's name is a phone thing only.
+ *
+ * Above 560px the Call section is still on the page carrying both numbers, so painting them here
+ * as well would set each one twice on the same screen. Not generating a box is what keeps the
+ * desktop page exactly the six stacked sections it was — the span is in the markup, and nothing
+ * above the phone tier lays it out.
+ */
+.c-list .cr-beside {
+  display: none;
+}
+
+/*
  * Links are underlined here, and in the footer they are not.
  *
  * The footer's links reveal their underline on hover, which is right for a row under a mark on a
@@ -1512,5 +1524,35 @@ body {
   .c-list dd {
     font-size: 12px;
     letter-spacing: 0.04em;
+  }
+
+  /*
+   * Founders, and the number that reaches each of them.
+   *
+   * Two sections become one. Call and Founders were the same two people written down twice —
+   * two names under one heading, two numbers under another, and the reader left to work out
+   * which went with which. Set side by side there is nothing to work out, and the page loses a
+   * heading it did not need. The numbers are the same two strings from the same array, still
+   * tel: links, just placed against the name instead of under a label of their own.
+   *
+   * The name column is measured in ch, which in a monospace face is one character exactly, so
+   * both numbers start on the same pixel without the two rows having to share a grid. 14ch
+   * clears the longer of the two names with a little to spare; a founder whose name runs past
+   * that would push their own number right and break the column, which is the one thing to
+   * watch if this list ever grows.
+   */
+  .c-list > .cs-call {
+    display: none;
+  }
+
+  .c-list .cr-pair {
+    display: grid;
+    grid-template-columns: 14ch minmax(0, 1fr);
+    gap: calc(var(--u) * 0.5);
+    align-items: baseline;
+  }
+
+  .c-list .cr-beside {
+    display: block;
   }
 }

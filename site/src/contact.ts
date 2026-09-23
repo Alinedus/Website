@@ -30,6 +30,18 @@ interface Group {
   items: Item[]
 }
 
+/**
+ * A line in a section, and optionally the value that sits beside it.
+ *
+ * Only the founders use the second slot today: on a phone each name is set against the number you
+ * would ring to reach that person, which is two facts the reader was otherwise asked to hold in
+ * their head across two sections. Everything else is a plain Item and renders as one value on
+ * one line.
+ */
+interface Row extends Item {
+  beside?: Item
+}
+
 const GROUPS = SIGNOFF.colophon as Group[]
 
 /**
@@ -62,12 +74,30 @@ const qualified = address?.items.filter((i) => i.prefix) ?? []
  * wording the footer sets beside the number, so taking the heading from the data means this page
  * cannot end up calling it something the footer does not.
  */
-const SECTIONS: { label: string; items: Item[] }[] = [
+const calls = pick('Call')?.items ?? []
+const founders = pick('Founders')?.items ?? []
+
+/**
+ * Each founder against the number that reaches them.
+ *
+ * Paired by position, which is the only relation the data carries: act2.ts lists two names under
+ * Founders and two numbers under Call, and nothing in it says which belongs to whom beyond the
+ * order they are written in. That is worth knowing before editing either list — add a third
+ * founder, or reorder the numbers, and the pairing follows the new positions. A name with no
+ * number opposite it simply has no second value, rather than borrowing the next one.
+ *
+ * Both lists are still read whole. The Call section below is built from the same array and is
+ * what a desktop reader sees; the phone hides it and shows these instead, so neither width is
+ * missing a number and neither is carrying it twice.
+ */
+const pairedFounders: Row[] = founders.map((f, i) => ({ ...f, beside: calls[i] }))
+
+const SECTIONS: { label: string; items: Row[] }[] = [
   { label: 'Address', items: addressLines },
   ...qualified.map((i) => ({ label: i.prefix!, items: [{ text: i.text, href: i.href }] })),
   { label: 'Write', items: pick('Write')?.items ?? [] },
-  { label: 'Call', items: pick('Call')?.items ?? [] },
-  { label: 'Founders', items: pick('Founders')?.items ?? [] },
+  { label: 'Call', items: calls },
+  { label: 'Founders', items: pairedFounders },
   { label: 'Follow', items: pick('Follow')?.items ?? [] },
 ]
 
@@ -90,9 +120,23 @@ root.innerHTML = `
     <dl class="c-list">
       ${SECTIONS.filter((s) => s.items.length)
         .map(
-          (s) => `<div>
+          // Slugged from the label — cs-call and cs-founders are what the phone rules name. The
+          // same handle the footer's own groups carry, for the same reason: a rule that says
+          // which section it means beats one that counts children.
+          (s) => `<div class="cs-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}">
             <dt>${s.label}</dt>
-            ${s.items.map((i) => `<dd>${value(i)}</dd>`).join('')}
+            ${s.items
+              .map((i) =>
+                // A paired row keeps both values in the markup at every width and lets CSS decide
+                // which is showing: the second one is not painted above 560px, where the Call
+                // section is still carrying it. Rendering one or the other from JS would mean
+                // reading the viewport at load and getting it wrong the moment it is resized.
+                i.beside
+                  ? `<dd class="cr-pair"><span class="cr-name">${value(i)}</span><span
+                      class="cr-beside">${value(i.beside)}</span></dd>`
+                  : `<dd>${value(i)}</dd>`,
+              )
+              .join('')}
           </div>`,
         )
         .join('')}
