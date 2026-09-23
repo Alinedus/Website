@@ -1,5 +1,5 @@
 import { createStage } from './stage'
-import { createUI, staticDoc } from './ui'
+import { createUI } from './ui'
 import { createLogo } from './logo'
 import { createMark } from './mark'
 import { createPreloader } from './preloader'
@@ -8,7 +8,6 @@ import { reducedMotion, hasWebGL } from './capability'
 import { VIEWPORTS, SCENES, HANDBACK, sceneAt, clamp01, smoothstep, quantise } from './scenes'
 
 document.documentElement.style.setProperty('--viewports', String(VIEWPORTS))
-document.getElementById('doc')!.innerHTML = staticDoc()
 if (reducedMotion) document.documentElement.dataset.motion = 'reduced'
 
 /* No WebGL means there is no film, so the written version stops being a fallback behind the
