@@ -146,7 +146,10 @@ export function createUI(): UI {
       <dl class="colophon" aria-label="Contact">
         ${SIGNOFF.colophon
           .map(
-            (g) => `<div>
+            // Slugged from the label so the phone rule below can name the one group it keeps
+            // instead of counting children. Nothing above 560px styles these, and the desktop row
+            // does not care what they are called — it is a handle, not a hook.
+            (g) => `<div class="cg-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}">
               <dt>${g.label}</dt>
               ${g.items
                 .map((i) =>
@@ -164,6 +167,14 @@ export function createUI(): UI {
             </div>`,
           )
           .join('')}
+        <!-- The seventh group, and a phone's only route to the contact page. Inside the dl rather
+             than beside it so it inherits the row's own label and link styling, and carries a dt
+             like every other group: a dd without one is not a valid definition list. CSS keeps it
+             out of the layout entirely above 560px. -->
+        <div class="colophon-more">
+          <dt>${SIGNOFF.colophonMore.label}</dt>
+          <dd><a href="${SIGNOFF.colophonMore.href}">${SIGNOFF.colophonMore.text}</a></dd>
+        </div>
       </dl>
     </div>`
   // The footer said "Design intelligence layer" — which the primary logo already carries, in its

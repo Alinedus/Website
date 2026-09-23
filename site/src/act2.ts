@@ -144,6 +144,22 @@ export const SIGNOFF = {
       ],
     },
   ] as { label: string; items: { text: string; href?: string; prefix?: string }[] }[],
+  /**
+   * The way to the contact page, and the only one a finger can reach.
+   *
+   * The skip link is the site's other route there, and it is a keyboard affordance: it sits at
+   * translateY(-140%) until :focus-visible brings it down, which on a touch screen never happens.
+   * So on a phone the contact page had no door at all, and this is it.
+   *
+   * It renders as a seventh group in the colophon and is shown only below 560px. Above that the
+   * row is the signed-off six and stays the signed-off six — the element is not laid out at all,
+   * so the desktop grid never sees a seventh child to place.
+   */
+  colophonMore: {
+    label: 'Contact',
+    text: 'All the details',
+    href: '/contact.html',
+  },
   footer: 'Design intelligence layer',
   /** the second route out of the sign-off: say something, rather than ask for the demo */
   open: 'or write to us',

@@ -501,6 +501,19 @@ body {
   min-width: 0;
 }
 
+/*
+ * The seventh group: the contact page's only door on a touch screen.
+ *
+ * display:none rather than visibility or a clip, because the row is a six-track grid and those
+ * tracks are the signed-off composition. A hidden-but-present seventh child would still be placed
+ * — it would wrap to a second row and push the whole block down into the mark's clearance. Not
+ * generating a box at all means the desktop and tablet rows are the rows they have always been,
+ * to the pixel. The phone tier turns it back on.
+ */
+.colophon > .colophon-more {
+  display: none;
+}
+
 .colophon dt {
   text-transform: uppercase;
   letter-spacing: 0.22em;
@@ -1110,18 +1123,33 @@ body {
     font-size: clamp(1.5rem, 7.4vw, 2.1rem);
   }
 
-  /* Six columns do not fit across a phone. Two equal ones instead — three rows of two, labels
-     lining up down the page, which is the only thing making twelve strings read as six groups.
-     The company and the address take the full width on their own rows below them: the address
-     needs every character it can get here, and a name that wraps mid-word helps nobody. */
+  /*
+   * On a phone the row is not a row. It is the registered company, and a link.
+   *
+   * Six columns folded to two still put four rows of nine-point mono under the mark, and the two
+   * that carry any length — the address and the emails — were the ones a phone could least afford
+   * to set. So the block stops trying. What stays is who alined is on paper, which is the one
+   * thing here that is a statement rather than a way of getting in touch, and underneath it one
+   * link to the page that now carries every way of getting in touch.
+   *
+   * Nothing is deleted to do this: the markup is the same seven groups in the same source order,
+   * built from the same SIGNOFF.colophon, and the desktop row is untouched. But display:none is
+   * not a visual trick — it takes those five groups out of the accessibility tree as well, so on
+   * a phone the link is the route to the address and the numbers for everybody, screen reader or
+   * not. That is why it is a real link with real text rather than an icon: it is load-bearing.
+   * The written fallback in #doc, which is what a browser with no WebGL gets, still carries the
+   * contact details in full and is not affected by any of this.
+   *
+   * The earlier reading order — the four short columns first, the two long ones under — went with
+   * them. It was an answer to a question this no longer asks: there is one group left and nothing
+   * to order it against. The desktop and tablet rows never had an order and still do not.
+   */
   .colophon {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     justify-items: start;
-    gap: calc(var(--u) * 0.8) calc(var(--u) * 1.2);
+    /* Two things now instead of six, so they get the air the six could not have */
+    gap: calc(var(--u) * 1.5);
     width: min(330px, 88vw);
-    /* Four rows of type where the desktop has one, on the screen with the least room for it. Every
-       string is still here and still readable; they are simply set as tightly as mono at this size
-       goes before the address stops being a thing you can read at a glance. */
     font-size: 9px;
     letter-spacing: 0.05em;
   }
@@ -1134,25 +1162,16 @@ body {
     line-height: 1.4;
   }
 
-  .colophon > div:nth-child(-n + 2) {
-    grid-column: 1 / -1;
+  /* Named rather than counted. :not(.cg-company) reads as the rule it is — everything the contact
+     page carries is hidden here — where nth-child(n + 2) would quietly follow act2.ts if somebody
+     reordered the groups and start hiding the company instead. */
+  .colophon > div:not(.cg-company):not(.colophon-more) {
+    display: none;
   }
 
-  /* Reading order on a phone only, set with `order` rather than a second copy of the markup: the
-     four short columns first, as two rows of two, then the two long ones full width underneath.
-
-     It is the same six columns carrying the same strings — only where they sit changes, and only
-     here. Above 560px nothing has an order at all, so the desktop row and the tablet's three
-     columns keep the company first, as filed. Source order stays company · address · write · call
-     · follow · founders, which is what a screen reader and a phone with CSS off still read.
-
-     Why this way round below 560px: write, call, follow and founders are one line each and the
-     company and the address are four between them, so packed from the top the block opens with
-     its two heaviest paragraphs and the short columns arrive after the eye has already given up.
-     Turned around, it opens with four things read at a glance and the two that need the measure
-     get the full width once they are reached. */
-  .colophon > div:nth-child(-n + 2) {
-    order: 1;
+  /* and the link, under the company it belongs to */
+  .colophon > .colophon-more {
+    display: flex;
   }
 
   /* The sign-off now carries a form and a colophon it did not before, and on a 667px phone it was
