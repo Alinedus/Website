@@ -72,7 +72,13 @@ addEventListener('keydown', (e) => {
   }
 })
 
-document.getElementById('skip')!.addEventListener('click', () => scroll.goTo(1))
+/* "Skip to contact" leaves the film now rather than jumping to its last frame: the contact
+   details have a page of their own, and a reader who wants a phone number and not the story
+   should not have to land on the end of the story to get it. The End key still goes to p = 1,
+   so the sign-off itself — the demo button and the message box — is one keystroke away. */
+document.getElementById('skip')!.addEventListener('click', () => {
+  location.href = '/contact.html'
+})
 
 /* -------------------------------------------------------------------- loop */
 let last = performance.now()

@@ -1240,3 +1240,222 @@ body {
     transform: none;
   }
 }
+
+/* ============================================================== contact page */
+/*
+ * /contact.html — the colophon as a page rather than a strip.
+ *
+ * Kept in one block at the end of the file, breakpoints included, against this stylesheet's own
+ * convention of base rules above and every media query below. The convention is right for the
+ * film, which is one composition whose parts have to be read against each other at each width.
+ * This is a separate document that shares the tokens and nothing else, and everything it needs
+ * being in one place is worth more here than the file's usual order. Nothing above this line is
+ * touched by anything below it.
+ *
+ * No new values. The ground, the ink and the dim are the three the film itself ends on, the
+ * spacing is the same --u the scenes are built from, and the two faces are the two that were
+ * already loaded.
+ */
+
+/*
+ * The ground.
+ *
+ * The footer this page restates is not charcoal. stage.ts inverts the world at the cut and drives
+ * --ink and --ink-dim from the live scene colour every frame, so by the time the colophon is on
+ * screen the film is sitting on cloud with charcoal ink. There is no stage here to drive them, so
+ * the two values the film arrives at are set once, and the page opens on the ground the reader
+ * just left rather than the one Act I starts on.
+ *
+ * --n-50 is the same #6B6664 stage.ts calls DIM_ON_LIGHT. The tokens agree already; this only
+ * stops them being the dark pair by default.
+ */
+:root[data-page='contact'] {
+  --ink: var(--charcoal);
+  --ink-dim: var(--n-50);
+  background: var(--cloud);
+}
+
+:root[data-page='contact'] body {
+  background: var(--cloud);
+  /* the film's body is a fixed stage over a tall scroller; this one is an ordinary document */
+  min-height: 100vh;
+}
+
+.contact {
+  display: block;
+  padding: calc(var(--u) * 4) calc(var(--u) * 3) calc(var(--u) * 5);
+}
+
+/* One measure, centred, and narrow enough that the address falls in two lines rather than one
+   long one. 88vw is the colophon's own share of a small frame — on a 375px phone this resolves to
+   exactly the 330px the footer uses, so the two never disagree about where the margin is. */
+.contact-inner {
+  width: min(680px, 88vw);
+  margin: 0 auto;
+}
+
+/* ---------------------------------------------------------- the wordmark */
+.c-mark {
+  display: block;
+  width: 168px;
+  line-height: 0;
+  /* the SVG is the whole of it — nothing to underline */
+  text-decoration: none;
+}
+
+.c-mark svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+/* The drawn dots take the page's ink. .cls-1 is the file's own class on the two scarlet ones —
+   the i's tittle and the d's head — and the SVG carries its own rule for those, which is the one
+   scarlet on this page and the same #FF391F the token holds. */
+.c-mark rect:not(.cls-1),
+.c-mark path:not(.cls-1) {
+  fill: var(--ink);
+}
+
+.c-mark:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 6px;
+}
+
+/* --------------------------------------------------------------- the rule */
+.c-rule {
+  margin: calc(var(--u) * 1.5) 0 calc(var(--u) * 3);
+  border: 0;
+  border-top: 1px solid var(--ink-dim);
+  opacity: 0.35;
+}
+
+/* ------------------------------------------------------------ the sections */
+/*
+ * Six stacked groups, each a label and its values — the same dl/dt/dd the footer is built from,
+ * so the markup says the same thing about what these strings are. What changes is the axis: the
+ * footer distributes six columns across a row and stretches them to a common height, and this
+ * runs them down a single column with one gap between sections and a smaller one inside them.
+ * That difference in spacing is the only thing grouping them, which is why the two gaps are two
+ * units apart rather than adjacent steps.
+ */
+.c-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2.5);
+}
+
+.c-list > div {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+  /* a long unbroken address must not be able to push the column wider than its measure */
+  min-width: 0;
+}
+
+/* The footer's label, unchanged: same face, same tracking, same dimming. It is the one device
+   carrying over verbatim, because a reader coming from the footer should recognise the labels
+   before they read them. */
+.c-list dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.62;
+}
+
+/*
+ * The values, at the size the page is for.
+ *
+ * Mono, like the footer — an address, a CIN and a phone number are data and they read as data.
+ * But the footer sets them at 10px because it is subordinate to a logo reveal, and this page is
+ * subordinate to nothing: the values are the reason anyone opened it. So they take the ink rather
+ * than the dim, and 13px rather than 10 — a step inside the register the site already uses for
+ * data, not a new one.
+ */
+.c-list dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-wrap: break-word;
+}
+
+/*
+ * Links are underlined here, and in the footer they are not.
+ *
+ * The footer's links reveal their underline on hover, which is right for a row under a mark on a
+ * desktop. Half of this page is things to tap and a phone has no hover at all, so an address that
+ * only admits to being a link once you have already touched it is a link nobody finds. The
+ * underline is the dim; it takes the ink when pointed at.
+ */
+.c-list a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink-dim);
+  transition: border-color 0.18s linear;
+}
+
+.c-list a:hover,
+.c-list a:focus-visible {
+  border-bottom-color: var(--ink);
+}
+
+.c-list a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------ contact, tablet */
+@media (max-width: 900px) {
+  .contact {
+    padding: calc(var(--u) * 3.5) calc(var(--u) * 2.5) calc(var(--u) * 4);
+  }
+
+  .contact-inner {
+    width: min(620px, 90vw);
+  }
+
+  .c-mark {
+    width: 148px;
+  }
+}
+
+/* ------------------------------------------------------- contact, phone */
+/*
+ * --u is already down to 11px here from the film's own tier, so every gap above has come in with
+ * it and only the things measured in pixels need restating. The measure drops to the 88vw the
+ * footer uses, which leaves about twenty-two points of margin either side at 375 and 390 — the
+ * same air the colophon has, on the same two screens.
+ */
+@media (max-width: 560px) {
+  .contact {
+    padding: calc(var(--u) * 3) calc(var(--u) * 2) calc(var(--u) * 3.5);
+  }
+
+  .contact-inner {
+    width: min(420px, 88vw);
+  }
+
+  .c-mark {
+    width: 124px;
+  }
+
+  .c-list {
+    gap: calc(var(--u) * 2);
+  }
+
+  .c-rule {
+    margin: calc(var(--u) * 1.25) 0 calc(var(--u) * 2.25);
+  }
+
+  .c-list dd {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+}
