@@ -19,7 +19,12 @@
  * style.css has moved on main, and a diagnostic is not worth a merge conflict.
  */
 
+import { sceneAt, smoothstep } from './scenes'
+
 const LIVE = [
+  'logo scale',
+  'logoReveal',
+  'scene',
   'p now/max',
   'p drops',
   'y drops',
@@ -46,6 +51,9 @@ const LIVE = [
 const CAUGHT = [
   'rule',
   'frame / t',
+  'logo scale',
+  'logoReveal',
+  'scene',
   'p before',
   'p at',
   'p delta',
@@ -64,6 +72,10 @@ const CAUGHT = [
   'logo on',
   'measuring',
 ] as const
+
+/* The reveal curve main.ts feeds logo.reveal(), restated so the readout shows the same number the
+   film is acting on rather than an approximation of it. */
+const logoRevealOf = (p: number) => smoothstep(0.942, 1.0, p)
 
 interface ScrollLike {
   get(): number
@@ -171,6 +183,43 @@ export function createDiag(scroll?: ScrollLike): void {
 
   const logoEl = document.getElementById('logo')
   const logoOn = () => logoEl?.querySelectorAll('.on').length ?? 0
+
+  /*
+   * How much of the wordmark is actually drawn, measured on the element itself.
+   *
+   * This is the thing the recording shows and the thing `on` cannot answer, because there are two
+   * independent routes to a visible glyph and only one of them goes through reveal(). A glyph is
+   * scale(0) at rest and scale(1) when it carries `on`; it is ALSO scale(1) for as long as #logo
+   * carries `measuring`, which outranks both and belongs to fitLogo rather than to progress. So
+   * the honest measure is the rendered scale of glyphs that are NOT `on`: anything above zero
+   * there is the wordmark on screen without the film having asked for it.
+   *
+   * Six glyphs, not all 162 — they share one rule and one transition so they move together, and
+   * reading every one of them each frame would be a forced layout sixty times a second, which is
+   * the diagnostic changing what it is measuring.
+   */
+  const scaleOf = (el: Element): number => {
+    const m = getComputedStyle(el).transform
+    if (!m || m === 'none') return 1
+    const n = m.match(/-?[\d.e+-]+/g)
+    return n ? Math.abs(parseFloat(n[0])) : 0
+  }
+  let sample6: Element[] = []
+  const logoScale = (): number => {
+    if (!logoEl) return 0
+    if (sample6.length === 0) {
+      const all = Array.from(logoEl.querySelectorAll('.logo-el'))
+      if (!all.length) return 0
+      const step = Math.max(1, Math.floor(all.length / 6))
+      sample6 = [0, 1, 2, 3, 4, 5].map((i) => all[Math.min(all.length - 1, i * step)]).filter(Boolean)
+    }
+    let max = 0
+    for (const el of sample6) {
+      if (el.classList.contains('on')) continue
+      max = Math.max(max, scaleOf(el))
+    }
+    return max
+  }
   const measuringNow = () => logoEl?.classList.contains('measuring') ?? false
   const limitOf = () =>
     scroll?.lenis?.limit ?? document.documentElement.scrollHeight - innerHeight
@@ -199,6 +248,9 @@ export function createDiag(scroll?: ScrollLike): void {
       resizes: String(resizes),
       'logo on': String(logoOn()),
       measuring: measuringNow() ? 'YES' : 'no',
+      'logo scale': logoScale().toFixed(4),
+      logoReveal: logoRevealOf(at.p).toFixed(4),
+      scene: sceneAt(at.p).id,
     }
   }
 
@@ -219,16 +271,18 @@ export function createDiag(scroll?: ScrollLike): void {
         const before = records[i].oldValue ?? ''
         const after = i + 1 < records.length ? (records[i + 1].oldValue ?? '') : cur
         if (before.includes('measuring') || !after.includes('measuring')) continue
+        /*
+         * Counted, not captured.
+         *
+         * Applying this class is fitLogo doing its job, and it has to: the glyphs sit at scale(0)
+         * and a box read there says the wordmark is nowhere. What was wrong was never the class,
+         * it was that leaving it animated the glyphs down from full size over 420ms and painted
+         * the wordmark on the way. That is fixed at the source, so the class on its own is no
+         * longer evidence of anything — R0 watches what actually reaches the screen, which is the
+         * thing that was ever visible. The count stays because it is worth knowing how often a
+         * phone re-measures: nine times across eight swipes, against once on a desktop at load.
+         */
         measurings++
-        const p = scroll?.get?.() ?? -1
-        if (performance.now() - born < 1200) continue // the load's own fit, not a glitch
-        if (p >= 0 && p < LOGO_MAX) {
-          capture(
-            'R5 measuring-forces-logo-visible',
-            { p, y: window.scrollY, t: performance.now() - born, frame: rafs },
-            prev,
-          )
-        }
       }
     }).observe(logoEl, { attributes: true, attributeFilter: ['class'], attributeOldValue: true })
   }
@@ -251,8 +305,13 @@ export function createDiag(scroll?: ScrollLike): void {
     if (trail.length > 8) trail.shift()
 
     if (!caught && now.t > 1200) {
+      // R0 — glyphs are rendered at size while the reveal curve is asking for nothing at all.
+      // This is the symptom itself rather than a proxy for it: whatever put them on screen, they
+      // are on screen and the film did not ask.
+      if (logoScale() > 0.02 && logoRevealOf(p) === 0)
+        capture('R0 wordmark-drawn-with-reveal-zero', now, prev)
       // R1 — the wordmark is on while progress is nowhere near its range
-      if (logoOn() > 0 && p < LOGO_MAX) capture('R1 logo-on-below-reveal-range', now, prev)
+      else if (logoOn() > 0 && p < LOGO_MAX) capture('R1 logo-on-below-reveal-range', now, prev)
       // R2 — progress leapt forward further than a frame of scrolling can
       else if (prev && p - prev.p > P_JUMP) capture('R2 p-jumped-up', now, prev)
       // R3 — progress had reached the reveal range and then fell out of it
@@ -374,6 +433,9 @@ export function createDiag(scroll?: ScrollLike): void {
       'doc h': docMin === Infinity ? '—' : `${docMin}–${docMax}`,
       'logo on': String(logoOn()),
       measurings: String(measurings),
+      'logo scale': logoScale().toFixed(4),
+      logoReveal: pNow < 0 ? '—' : logoRevealOf(pNow).toFixed(4),
+      scene: pNow < 0 ? '—' : sceneAt(pNow).id,
       'film age': age > 1500 ? `${age}ms  <-- LOOP DEAD` : `${age}ms`,
       raf: `${rafs} / film ${t}`,
       fps: hFps?.textContent ?? '—',

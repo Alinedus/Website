@@ -243,7 +243,29 @@ export function createUI(): UI {
         bottom = Math.max(bottom, r.bottom)
       }
     }
+    /*
+     * Come out of the measuring state without animating out of it.
+     *
+     * `measuring` forces every glyph to scale(1) and carries `transition: none`, so going in is
+     * instant and invisible. Coming out was not. Removing the class restores `.logo-el`, whose own
+     * rule is `transition: transform 0.42s`, so the glyphs did not return to scale(0) — they were
+     * handed a 420ms animation down to it, which outlives this function by four hundred
+     * milliseconds and paints the entire wordmark across the middle of the frame on its way.
+     *
+     * Nobody saw it on a desktop because fitLogo runs on resize and a desktop window is not
+     * resized while reading. A phone's is: the URL bar slides on every scroll, resize fires with
+     * it, and each one of those is a wordmark fading out over the film.
+     *
+     * `settling` holds the transition off while the class comes away, and reading offsetWidth
+     * commits that recalculation there and then — so scale(0) is adopted with no transition to
+     * inherit. Removing `settling` afterwards changes nothing that is not already at its target,
+     * so there is nothing left to animate. The reveal's own 420ms is untouched; this only governs
+     * the frame the measurement leaves behind.
+     */
+    logoEl.classList.add('settling')
     logoEl.classList.remove('measuring')
+    void logoEl.offsetWidth
+    logoEl.classList.remove('settling')
 
     if (bottom > -Infinity) {
       const gap = Math.min(110, Math.max(24, innerHeight * 0.099))

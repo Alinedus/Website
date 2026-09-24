@@ -621,6 +621,18 @@ body {
   transition: none;
 }
 
+/* Leaving the measurement, not entering it.
+   Going in is instant because the rule above says so. Coming out was not: the moment `measuring`
+   came away the glyphs fell back under `.logo-el`, whose transition is 420ms, so they animated
+   down from full size rather than simply being at scale(0) again — a whole wordmark fading across
+   the frame, four hundred milliseconds after the measurement that caused it had returned. ui.ts
+   holds this on while the class comes away and commits the recalculation before it goes, so the
+   glyphs adopt scale(0) with no transition to inherit. Nothing about the reveal's own 420ms
+   changes; this governs one frame, the one the measurement leaves behind. */
+#logo.settling .logo-el {
+  transition: none;
+}
+
 /* The d's dot is not revealed by the sequence — the film flies his head into this exact spot and
    the two swap in one frame, so it has to arrive at full size with no transition of its own. */
 #logo .logo-land {
