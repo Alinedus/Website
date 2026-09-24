@@ -20,7 +20,12 @@
  */
 
 const FIELDS = [
-  'p',
+  'p now/max',
+  'p drops',
+  'y drops',
+  'lenis vs y',
+  'ST end',
+  'doc h',
   'film age',
   'raf',
   'fps',
@@ -31,13 +36,17 @@ const FIELDS = [
   'visual vp',
   'dpr',
   'scrollY',
-  'doc h',
   'resizes',
   'inner h seen',
   'last error',
 ] as const
 
-export function createDiag(): void {
+interface ScrollLike {
+  get(): number
+  lenis: { scroll?: number; targetScroll?: number; limit?: number } | null
+}
+
+export function createDiag(scroll?: ScrollLike): void {
   const box = document.createElement('div')
   box.id = 'diag'
   box.setAttribute('aria-hidden', 'true')
@@ -102,6 +111,7 @@ export function createDiag(): void {
   let rafs = 0
   const countFrame = () => {
     rafs++
+    sample()
     requestAnimationFrame(countFrame)
   }
   requestAnimationFrame(countFrame)
@@ -112,6 +122,68 @@ export function createDiag(): void {
 
   let lastTick = -1
   let lastTickAt = performance.now()
+
+  /*
+   * Accumulators, not a live trace.
+   *
+   * The question is whether progress ever runs backwards while a finger is going one way, and a
+   * photograph of one instant cannot answer it — by the time the screen is captured the moment has
+   * passed. So each of these keeps the worst thing it has seen since the page loaded, and one
+   * screenshot taken at any point afterwards reports it.
+   *
+   * reveal() in logo.ts is a pure function of progress with no clock of its own, and main.ts is
+   * its only caller, so the wordmark cannot appear unless progress genuinely passed 0.942. `p max`
+   * is therefore the whole question: if it reads 9xx during a scroll through the middle of the
+   * film, progress really did jump to the end, and the rest of these say which of the three ways
+   * it got there.
+   */
+  let pMax = 0
+  let pPrev = -1
+  let pDrops = 0
+  let pWorstDrop = 0
+  let yPrev = -1
+  let yDrops = 0
+  let yWorstDrop = 0
+  let lenisGap = 0
+  let endMin = Infinity
+  let endMax = -Infinity
+  let docMin = Infinity
+  let docMax = -Infinity
+
+  function sample() {
+    const p = scroll?.get?.() ?? -1
+    if (p >= 0) {
+      pMax = Math.max(pMax, p)
+      if (pPrev >= 0 && p < pPrev - 0.004) {
+        pDrops++
+        pWorstDrop = Math.max(pWorstDrop, pPrev - p)
+      }
+      pPrev = p
+    }
+    const y = window.scrollY
+    if (yPrev >= 0 && y < yPrev - 2) {
+      yDrops++
+      yWorstDrop = Math.max(yWorstDrop, yPrev - y)
+    }
+    yPrev = y
+
+    /* Lenis writes window.scrollY itself, so the two should never disagree by much. If they do,
+       the film is being driven from one number while the page is drawn at another. */
+    const ls = scroll?.lenis?.scroll
+    if (typeof ls === 'number') lenisGap = Math.max(lenisGap, Math.abs(ls - y))
+
+    /* ScrollTrigger's end is the document height less the viewport, and the viewport is the thing
+       a URL bar changes. If end moves, every progress value derived from it moves with it — the
+       same scroll position becomes a different p, which is a jump nobody scrolled. */
+    const lim = scroll?.lenis?.limit
+    if (typeof lim === 'number' && lim > 0) {
+      endMin = Math.min(endMin, lim)
+      endMax = Math.max(endMax, lim)
+    }
+    const dh = document.documentElement.scrollHeight
+    docMin = Math.min(docMin, dh)
+    docMax = Math.max(docMax, dh)
+  }
 
   /* getContext hands back the context that already exists rather than making a second one, so
      asking the canvas whether it is lost costs nothing and creates nothing. */
@@ -139,8 +211,16 @@ export function createDiag(): void {
     }
     const age = Math.round(performance.now() - lastTickAt)
 
+    const pNow = scroll?.get?.() ?? -1
     const values: Record<(typeof FIELDS)[number], string> = {
-      p: hPct?.textContent || '—',
+      'p now/max': `${pNow < 0 ? '—' : pNow.toFixed(3)} / ${pMax.toFixed(3)}${
+        pMax > 0.9 ? '  <-- REACHED THE END' : ''
+      }`,
+      'p drops': `${pDrops}  worst ${pWorstDrop.toFixed(3)}`,
+      'y drops': `${yDrops}  worst ${Math.round(yWorstDrop)}px`,
+      'lenis vs y': `${Math.round(lenisGap)}px max`,
+      'ST end': endMin === Infinity ? '—' : `${Math.round(endMin)}–${Math.round(endMax)}`,
+      'doc h': docMin === Infinity ? '—' : `${docMin}–${docMax}`,
       'film age': age > 1500 ? `${age}ms  <-- LOOP DEAD` : `${age}ms`,
       raf: `${rafs} / film ${t}`,
       fps: hFps?.textContent ?? '—',
@@ -151,7 +231,6 @@ export function createDiag(): void {
       'visual vp': vv ? `${Math.round(vv.width)}x${Math.round(vv.height)}` : 'n/a',
       dpr: String(devicePixelRatio),
       scrollY: String(Math.round(scrollY)),
-      'doc h': String(document.documentElement.scrollHeight),
       resizes: String(resizes),
       'inner h seen': hMin === Infinity ? '—' : `${hMin}–${hMax}`,
       'last error': lastError,

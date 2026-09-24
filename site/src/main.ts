@@ -47,7 +47,7 @@ addEventListener('keydown', (e) => {
    not reproduce in an emulator. Nothing here runs unless the parameter is present. */
 if (new URLSearchParams(location.search).has('hud')) {
   hud.hidden = false
-  createDiag()
+  createDiag(scroll)
 }
 
 /* ---------------------------------------------------------------- keyboard */
