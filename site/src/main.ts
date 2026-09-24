@@ -95,6 +95,13 @@ let acc = 0
 let frames = 0
 
 function tick(now: number) {
+  /* One integer, incremented from inside the loop, so a reader outside it can tell a film that is
+     idle from a film that is dead. tick() ends by asking for the next frame, so anything thrown
+     between here and there takes the request with it and the loop never runs again — silently,
+     because nothing catches it and the page keeps scrolling regardless. Counting frames here is
+     what makes that visible; diag.ts reads it, and nothing else does. */
+  window.__tick = (window.__tick ?? 0) + 1
+
   const raw = scroll.get()
   // reduced motion snaps the story to one composed frame per beat; the spine still follows real
   // scroll, because a progress indicator that jumps is just broken
@@ -147,6 +154,8 @@ if (new URLSearchParams(location.search).has('instant')) {
    simulating scroll. Used by the Playwright contact-sheet pass. */
 declare global {
   interface Window {
+    /** frames the render loop has completed — a heartbeat, read by diag.ts */
+    __tick?: number
     __setProgress: (p: number) => void
     __useScroll: () => void
     __headAt: () => { x: number; y: number; r: number }

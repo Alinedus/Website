@@ -21,6 +21,8 @@
 
 const FIELDS = [
   'p',
+  'film age',
+  'raf',
   'fps',
   'ctx lost',
   'buffer',
@@ -80,9 +82,36 @@ export function createDiag(): void {
     lastError = `rejection: ${String((e as PromiseRejectionEvent).reason).slice(0, 52)}`
   })
 
+  /*
+   * Two clocks, deliberately separate.
+   *
+   * `raf` is this file's own frame count. It proves the browser is still animating the page at
+   * all. `film age` is how long it has been since main.ts's loop last wrote a new progress value.
+   *
+   * The pair is what distinguishes a film that is idle from a film that is dead. tick() in
+   * main.ts ends by asking for the next frame, so anything thrown inside it — from stage.update,
+   * from ui.update, from any of the four calls in between — takes the request with it and the
+   * loop never runs again. Nothing catches it and nothing reports it. The page carries on
+   * scrolling, because Lenis and ScrollTrigger ride gsap's ticker and not this loop, so what is
+   * left is a page that scrolls under a picture that has stopped: the copy frozen on whichever
+   * scene it had reached, the geometry frozen with it.
+   *
+   * If raf is climbing while film age keeps growing, that is what has happened, and `last error`
+   * says why.
+   */
+  let rafs = 0
+  const countFrame = () => {
+    rafs++
+    requestAnimationFrame(countFrame)
+  }
+  requestAnimationFrame(countFrame)
+
   const canvas = document.getElementById('gl') as HTMLCanvasElement | null
   const hPct = document.getElementById('h-pct')
   const hFps = document.getElementById('h-fps')
+
+  let lastTick = -1
+  let lastTickAt = performance.now()
 
   /* getContext hands back the context that already exists rather than making a second one, so
      asking the canvas whether it is lost costs nothing and creates nothing. */
@@ -101,8 +130,19 @@ export function createDiag(): void {
     const gl = glOf(canvas)
     const r = canvas?.getBoundingClientRect()
     const vv = window.visualViewport
+    /* The heartbeat, not the progress value. p legitimately holds still whenever the reader is
+       not scrolling, so a stalled p says nothing; a stalled frame count says the loop is gone. */
+    const t = (window as unknown as { __tick?: number }).__tick ?? -1
+    if (t !== lastTick) {
+      lastTick = t
+      lastTickAt = performance.now()
+    }
+    const age = Math.round(performance.now() - lastTickAt)
+
     const values: Record<(typeof FIELDS)[number], string> = {
-      p: hPct?.textContent ?? '—',
+      p: hPct?.textContent || '—',
+      'film age': age > 1500 ? `${age}ms  <-- LOOP DEAD` : `${age}ms`,
+      raf: `${rafs} / film ${t}`,
       fps: hFps?.textContent ?? '—',
       'ctx lost': gl ? (gl.isContextLost() ? 'YES' : 'no') : 'NO CONTEXT',
       buffer: canvas ? `${canvas.width}x${canvas.height}` : '—',
