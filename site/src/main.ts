@@ -6,6 +6,7 @@ import { createPreloader } from './preloader'
 import { initScroll } from './scroll'
 import { reducedMotion, hasWebGL } from './capability'
 import { VIEWPORTS, SCENES, HANDBACK, sceneAt, clamp01, smoothstep, quantise } from './scenes'
+import { createDiag } from './diag'
 
 document.documentElement.style.setProperty('--viewports', String(VIEWPORTS))
 document.getElementById('doc')!.innerHTML = staticDoc()
@@ -40,6 +41,14 @@ const hFps = document.getElementById('h-fps')!
 addEventListener('keydown', (e) => {
   if (e.key === 'h' || e.key === 'H') hud.hidden = !hud.hidden
 })
+
+/* ?hud is the same switch for a device with no keyboard to press h on. It also puts the readout
+   in diag.ts on screen, which is the only way to see what a phone is doing when the failure will
+   not reproduce in an emulator. Nothing here runs unless the parameter is present. */
+if (new URLSearchParams(location.search).has('hud')) {
+  hud.hidden = false
+  createDiag()
+}
 
 /* ---------------------------------------------------------------- keyboard */
 /**

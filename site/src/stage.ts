@@ -486,7 +486,22 @@ export function createStage(
     // every time the URL bar slides — reallocating the drawing buffer mid-scroll, which is the one
     // thing guaranteed to drop frames exactly when the reader is scrolling fastest.
     if (w !== sizedW || h !== sizedH) {
-      renderer.setSize(w, h, false)
+      /*
+       * Let three set the element's size as well as the buffer's.
+       *
+       * It used to pass false here — draw at innerWidth x innerHeight, leave the CSS alone — and
+       * the CSS says `#gl { width: 100vw; height: 100vh }`. On a desktop those are the same number
+       * and the argument never mattered. On a phone they are not: vh is the *large* viewport, the
+       * one with the URL bar hidden, and it is a constant, while innerHeight is the viewport there
+       * actually is right now and shrinks by the height of the bar whenever it is showing.
+       *
+       * So with the bar up the element stood taller than the picture drawn into it and the browser
+       * stretched one to fit the other — the whole composition scaled and slid, and then changed
+       * again every time the bar moved. Sizing both from the same two numbers means they cannot
+       * disagree, at any viewport, on any device. Desktop is unaffected: there the numbers were
+       * already equal and the style it now writes is the size the element already had.
+       */
+      renderer.setSize(w, h)
       sizedW = w
       sizedH = h
     }
