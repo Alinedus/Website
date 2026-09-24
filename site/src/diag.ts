@@ -19,13 +19,15 @@
  * style.css has moved on main, and a diagnostic is not worth a merge conflict.
  */
 
-const FIELDS = [
+const LIVE = [
   'p now/max',
   'p drops',
   'y drops',
   'lenis vs y',
   'ST end',
   'doc h',
+  'logo on',
+  'measurings',
   'film age',
   'raf',
   'fps',
@@ -39,6 +41,28 @@ const FIELDS = [
   'resizes',
   'inner h seen',
   'last error',
+] as const
+
+const CAUGHT = [
+  'rule',
+  'frame / t',
+  'p before',
+  'p at',
+  'p delta',
+  'p max',
+  'p trail',
+  'scrollY before',
+  'scrollY at',
+  'scrollY delta',
+  'lenis scroll',
+  'lenis vs y',
+  'doc h',
+  'ST end',
+  'inner h',
+  'visual vp h',
+  'resizes',
+  'logo on',
+  'measuring',
 ] as const
 
 interface ScrollLike {
@@ -108,13 +132,139 @@ export function createDiag(scroll?: ScrollLike): void {
    * If raf is climbing while film age keeps growing, that is what has happened, and `last error`
    * says why.
    */
+  /* ------------------------------------------------------ first anomaly */
+  /*
+   * What counts as wrong, and why each rule is drawn where it is.
+   *
+   * The starting state must never trip this. At p = 0 the logo has nothing on: reveal() is called
+   * once with 0 as soon as the SVG lands, ramp() returns 0 for every phase at t = 0, so no element
+   * carries `on`, and the d's dot is held back until p >= HANDBACK.fly[1], which is 0.9865. So an
+   * element carrying `on` below the reveal range is already abnormal, and the count being zero at
+   * rest is what makes that safe to test.
+   *
+   * R5 is the one a frame sampler cannot see. fitLogo() puts `measuring` on #logo, reads the
+   * glyphs and takes it off again inside one synchronous block, and CSS gives that class
+   * `transform: scale(1)` on every `.logo-el` — it outranks the scale(0) they normally sit at, so
+   * for the duration of that class the whole wordmark is full size whatever `on` says. The comment
+   * on the rule reasons that nothing is painted in between, which holds only if the browser does
+   * not composite mid-block. fitLogo is bound to resize, and on a phone resize fires continuously
+   * while the URL bar slides, so this runs over and over during exactly the scrolling where the
+   * wordmark is reported. A MutationObserver sees the class arrive even when it is gone before the
+   * next frame; requestAnimationFrame does not.
+   */
+  const LOGO_MAX = 0.9 // clear of the 0.942 the reveal starts at
+  const P_JUMP = 0.05 // one frame of ordinary scrolling moves p by far less
+  const P_FALL = 0.05 // having reached the end, this much back down is a fall
+  const P_VS_Y = 0.08 // p against scrollY/limit, generous for Lenis's smoothing
+
+  interface Snap {
+    p: number
+    y: number
+    t: number
+    frame: number
+  }
+  const trail: number[] = []
+  let prev: Snap | null = null
+  let caught: Record<(typeof CAUGHT)[number], string> | null = null
+  let measurings = 0
+  const born = performance.now()
+
+  const logoEl = document.getElementById('logo')
+  const logoOn = () => logoEl?.querySelectorAll('.on').length ?? 0
+  const measuringNow = () => logoEl?.classList.contains('measuring') ?? false
+  const limitOf = () =>
+    scroll?.lenis?.limit ?? document.documentElement.scrollHeight - innerHeight
+
+  function capture(rule: string, at: Snap, before: Snap | null) {
+    if (caught) return
+    const vv = window.visualViewport
+    caught = {
+      rule,
+      'frame / t': `${at.frame} / ${(at.t / 1000).toFixed(2)}s`,
+      'p before': before ? before.p.toFixed(4) : '—',
+      'p at': at.p.toFixed(4),
+      'p delta': before ? `${at.p - before.p >= 0 ? '+' : ''}${(at.p - before.p).toFixed(4)}` : '—',
+      'p max': pMax.toFixed(4),
+      'p trail': trail.map((v) => v.toFixed(3)).join(' '),
+      'scrollY before': before ? String(Math.round(before.y)) : '—',
+      'scrollY at': String(Math.round(at.y)),
+      'scrollY delta': before ? `${at.y - before.y >= 0 ? '+' : ''}${Math.round(at.y - before.y)}` : '—',
+      'lenis scroll': typeof scroll?.lenis?.scroll === 'number' ? String(Math.round(scroll.lenis.scroll)) : '—',
+      'lenis vs y':
+        typeof scroll?.lenis?.scroll === 'number' ? String(Math.round(scroll.lenis.scroll - at.y)) : '—',
+      'doc h': String(document.documentElement.scrollHeight),
+      'ST end': String(Math.round(limitOf())),
+      'inner h': String(innerHeight),
+      'visual vp h': vv ? String(Math.round(vv.height)) : 'n/a',
+      resizes: String(resizes),
+      'logo on': String(logoOn()),
+      measuring: measuringNow() ? 'YES' : 'no',
+    }
+  }
+
+  /*
+   * R5 — the class that forces the wordmark full size, caught as it is applied.
+   *
+   * Reading the element's class inside the callback does not work: the callback is a microtask, so
+   * it runs after fitLogo's synchronous block has both added `measuring` and taken it off again,
+   * and by then the class says nothing happened. The records carry what was there before each
+   * change, so the value *after* a change is the next record's oldValue, or the class as it stands
+   * for the last one. A pair whose before lacks `measuring` and whose after has it is an episode,
+   * however briefly it existed.
+   */
+  if (logoEl) {
+    new MutationObserver((records) => {
+      const cur = logoEl.className
+      for (let i = 0; i < records.length; i++) {
+        const before = records[i].oldValue ?? ''
+        const after = i + 1 < records.length ? (records[i + 1].oldValue ?? '') : cur
+        if (before.includes('measuring') || !after.includes('measuring')) continue
+        measurings++
+        const p = scroll?.get?.() ?? -1
+        if (performance.now() - born < 1200) continue // the load's own fit, not a glitch
+        if (p >= 0 && p < LOGO_MAX) {
+          capture(
+            'R5 measuring-forces-logo-visible',
+            { p, y: window.scrollY, t: performance.now() - born, frame: rafs },
+            prev,
+          )
+        }
+      }
+    }).observe(logoEl, { attributes: true, attributeFilter: ['class'], attributeOldValue: true })
+  }
+
   let rafs = 0
   const countFrame = () => {
     rafs++
     sample()
+    detect()
     requestAnimationFrame(countFrame)
   }
   requestAnimationFrame(countFrame)
+
+  function detect() {
+    const p = scroll?.get?.() ?? -1
+    if (p < 0) return
+    const y = window.scrollY
+    const now: Snap = { p, y, t: performance.now() - born, frame: rafs }
+    trail.push(p)
+    if (trail.length > 8) trail.shift()
+
+    if (!caught && now.t > 1200) {
+      // R1 — the wordmark is on while progress is nowhere near its range
+      if (logoOn() > 0 && p < LOGO_MAX) capture('R1 logo-on-below-reveal-range', now, prev)
+      // R2 — progress leapt forward further than a frame of scrolling can
+      else if (prev && p - prev.p > P_JUMP) capture('R2 p-jumped-up', now, prev)
+      // R3 — progress had reached the reveal range and then fell out of it
+      else if (pMax >= 0.942 && p < pMax - P_FALL) capture('R3 p-fell-from-end', now, prev)
+      // R4 — progress disagrees with where the page actually is
+      else {
+        const lim = limitOf()
+        if (lim > 0 && Math.abs(p - y / lim) > P_VS_Y) capture('R4 p-disagrees-with-scrollY', now, prev)
+      }
+    }
+    prev = now
+  }
 
   const canvas = document.getElementById('gl') as HTMLCanvasElement | null
   const hPct = document.getElementById('h-pct')
@@ -196,7 +346,8 @@ export function createDiag(scroll?: ScrollLike): void {
     }
   }
 
-  const pad = Math.max(...FIELDS.map((f) => f.length))
+  const padLive = Math.max(...LIVE.map((f) => f.length))
+  const padCaught = Math.max(...CAUGHT.map((f) => f.length))
 
   function tick() {
     const gl = glOf(canvas)
@@ -212,7 +363,7 @@ export function createDiag(scroll?: ScrollLike): void {
     const age = Math.round(performance.now() - lastTickAt)
 
     const pNow = scroll?.get?.() ?? -1
-    const values: Record<(typeof FIELDS)[number], string> = {
+    const values: Record<(typeof LIVE)[number], string> = {
       'p now/max': `${pNow < 0 ? '—' : pNow.toFixed(3)} / ${pMax.toFixed(3)}${
         pMax > 0.9 ? '  <-- REACHED THE END' : ''
       }`,
@@ -221,6 +372,8 @@ export function createDiag(scroll?: ScrollLike): void {
       'lenis vs y': `${Math.round(lenisGap)}px max`,
       'ST end': endMin === Infinity ? '—' : `${Math.round(endMin)}–${Math.round(endMax)}`,
       'doc h': docMin === Infinity ? '—' : `${docMin}–${docMax}`,
+      'logo on': String(logoOn()),
+      measurings: String(measurings),
       'film age': age > 1500 ? `${age}ms  <-- LOOP DEAD` : `${age}ms`,
       raf: `${rafs} / film ${t}`,
       fps: hFps?.textContent ?? '—',
@@ -235,7 +388,13 @@ export function createDiag(scroll?: ScrollLike): void {
       'inner h seen': hMin === Infinity ? '—' : `${hMin}–${hMax}`,
       'last error': lastError,
     }
-    box.textContent = FIELDS.map((f) => `${f.padEnd(pad)}  ${values[f]}`).join('\n')
+    const live = LIVE.map((f) => `${f.padEnd(padLive)}  ${values[f]}`).join('\n')
+    box.textContent = caught
+      ? 'ANOMALY CAPTURED\n' +
+        CAUGHT.map((f) => `${f.padEnd(padCaught)}  ${caught![f]}`).join('\n') +
+        '\n\n--- live ---\n' +
+        live
+      : live
     setTimeout(tick, 250)
   }
   tick()
