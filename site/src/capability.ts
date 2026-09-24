@@ -21,7 +21,24 @@ export function hasWebGL(): boolean {
     const gl = c.getContext('webgl2') ?? c.getContext('webgl')
     if (!gl) return false
     // a context that exists but is immediately lost is worse than none — it renders black
-    return !(gl as WebGLRenderingContext).isContextLost()
+    const live = !(gl as WebGLRenderingContext).isContextLost()
+
+    /*
+     * Hand the probe's context back before returning.
+     *
+     * This asks the question and then walks away holding the answer *and* a live WebGL context,
+     * for the life of the page, on a canvas that is never added to the document and never drawn
+     * again. On a desktop that is merely untidy. On iOS it is not: WebKit caps how many WebGL
+     * contexts a page may hold, and when the cap is reached it does not refuse the new one — it
+     * takes the oldest one away. The oldest one here is the film's, because this probe runs first.
+     *
+     * So the film is drawn on a context that is one slot closer to being reclaimed than it needs
+     * to be, and it costs nothing to give the slot back. loseContext() fires webglcontextlost on
+     * this throwaway canvas only; the renderer's context is created afterwards and is untouched.
+     */
+    ;(gl as WebGLRenderingContext).getExtension('WEBGL_lose_context')?.loseContext()
+
+    return live
   } catch {
     return false
   }
