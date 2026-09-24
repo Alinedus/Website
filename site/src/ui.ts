@@ -1,4 +1,4 @@
-import { SCENES, sceneAt, smoothstep, clamp01, type Scene } from './scenes'
+import { SCENES, sceneAt, smoothstep, clamp01 } from './scenes'
 import { STATIONS, LAP_LINES, counters } from './stations'
 import { ACT2, FORM_ENDPOINT, SIGNOFF, beatAt } from './act2'
 import type { StageReadout } from './stage'
@@ -531,7 +531,6 @@ function pct(v: number): string {
   return `${String(Math.round(v * 100)).padStart(2, '0')}%`
 }
 
-/** Ordered, readable copy for search engines and for anyone without WebGL. */
 /**
  * The message box.
  *
@@ -597,22 +596,6 @@ function wireMessageBox(root: HTMLElement, refit: () => void): void {
       refit()
     }
   })
-}
-
-export function staticDoc(): string {
-  const scenes = SCENES.map((s: Scene) => `<li><h2>${s.label}</h2><p>${s.note}</p></li>`).join('')
-  const stations = STATIONS.map((s) => `<li><b>${s.key}</b> — ${s.line} (${s.cost})</li>`).join('')
-  return `
-    <h1>alined — the shortest distance between intent and execution</h1>
-    <p>Design intelligence layer for architects. Think, sketch and model on one surface, and change
-       it in front of the client instead of going round the loop again.</p>
-    <ol>${scenes}</ol>
-    <h2>The loop</h2>
-    <ul>${stations}</ul>
-    <p>${LAP_LINES.join(' ')}</p>
-    <p>Request access: <a href="mailto:lets.get.alined@gmail.com">lets.get.alined@gmail.com</a></p>
-    <p>Contact: <a href="mailto:lets.get.alined@gmail.com">lets.get.alined@gmail.com</a>,
-       <a href="mailto:reshma@lets-get-alined.com">reshma@lets-get-alined.com</a></p>`
 }
 
 void clamp01
